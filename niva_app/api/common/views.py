@@ -1,0 +1,173 @@
+"""
+Module: custard_app.api.common.views
+
+Common views for API
+
+This module contains common views for API
+
+Classes:
+    - ResponseMessageMixin: Mixin class to set and get response message
+    - BaseAPI: Base API class for all APIs
+    - OpenAPI: Open API class for APIs that do not require authentication
+
+"""
+import json
+import urllib
+import uuid
+from datetime import datetime, timedelta
+from typing import Any, Dict, Type
+
+from google.cloud import storage
+from google.oauth2 import service_account
+from rest_framework.exceptions import AuthenticationFailed
+from rest_framework.generics import GenericAPIView
+from rest_framework.response import Response
+from rest_framework.status import HTTP_400_BAD_REQUEST, HTTP_200_OK
+from rest_framework.authentication import TokenAuthentication, get_authorization_header, BaseAuthentication
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.serializers import Serializer, CharField, BooleanField
+
+from app.config import GCS_BUCKET_NAME, GCP_SA_KEY, GCS_BASE_URL
+from custard_app.models import User
+from custard_app.services.storage import StorageService
+
+
+class ResponseMessageMixin:
+    _response_message = None
+
+    def set_response_message(self, message):
+        self._response_message = message
+
+    def get_response_message(self):
+        return self._response_message
+
+
+class BaseAPI(GenericAPIView, ResponseMessageMixin):
+    """
+    Base API class for all APIs
+
+    This class is the base class for all APIs. It provides common methods and properties for all APIs.
+    This class can be used to created protected APIs.
+
+    Properties:
+        - input_serializer_class: Serializer
+        - authentication_classes: List[Type[BaseAuthentication]]
+        - permission_classes: List[Type[BasePermission]]
+
+    Methods:
+        - validate_data: Validate the given data using the given serializer class
+        - validate_input_data: Validate the input data using the input serializer class
+        - get_user: Get the current user
+        - get_response_400: Get the response with status 400
+        - get_response_200: Get the response with status 200
+    """
+
+    input_serializer_class = None
+    query_params_serializer_class = None
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        print("--->", request.headers)  # Debugging
+
+    def validate_data(
+            self, serializer_class: Type[Serializer], data: Dict[str, Any], *args, **kwargs
+    ) -> Dict[str, Any]:
+        serializer = serializer_class(data=data, *args, **kwargs)
+        serializer.is_valid(raise_exception=True)
+        return serializer.validated_data
+
+    def validate_input_data(self, *args, **kwargs) -> Dict[str, Any]:
+        return self.validate_data(self.input_serializer_class, self.request.data, *args, **kwargs)  # type: ignore
+
+    def validate_query_params(self, *args, **kwargs) -> Dict[str, Any]:
+        return self.validate_data(self.query_params_serializer_class, self.request.query_params, *args,
+                                  **kwargs)  # type: ignore
+
+    def get_user(self) -> User:
+        return self.request.user  # type: ignore
+
+    def get_response_400(self, message=None):
+        if message is not None:
+            self.set_response_message(message)
+        return Response(
+            status=HTTP_400_BAD_REQUEST,
+        )
+
+    def get_response_200(self):
+        return Response(
+            status=HTTP_200_OK,
+        )
+
+class OpenAPI(BaseAPI):
+    """
+    Open API class for APIs that do not require authentication
+
+    This class is used for APIs that do not require authentication. It is a subclass of BaseAPI.
+    It does not require authentication and permission.
+
+    Properties:
+        - authentication_classes: List[Type[BaseAuthentication]]
+        - permission_classes: List[Type[BasePermission]]
+
+    """
+
+    authentication_classes = ()
+    permission_classes = ()
+
+
+class GetPresignedUrlInput(Serializer):
+    file_name = CharField(required=True)
+    file_path = CharField(required=True)
+    file_type = CharField(required=True)
+    use_v2_bucket = BooleanField(required=False)
+
+
+class GetPresignedUrl(BaseAPI):
+    input_serializer_class = GetPresignedUrlInput
+
+    def post(self, request, *args, **kwargs):
+        data = self.validate_input_data()
+
+        storage_client = StorageService.get_client()
+
+        file_extension = data["file_name"].split(".")[-1]
+        file_key = f"{data['file_path']}/{uuid.uuid4().hex}.{file_extension}"
+
+        bucket_name = GCS_BUCKET_NAME
+
+        try:
+            bucket = storage_client.bucket(bucket_name)
+            blob = bucket.blob(file_key)
+
+            # Generate signed URL for uploading
+            # URL expires in 15 minutes
+            expires_at = datetime.now() + timedelta(minutes=15)
+
+            signed_url = blob.generate_signed_url(
+                version="v4",
+                expiration=expires_at,
+                method="PUT",
+                content_type=data["file_type"]
+            )
+
+            # Construct the direct URL
+            # Format: https://storage.googleapis.com/BUCKET_NAME/FILE_KEY
+
+            base_url = f"{GCS_BASE_URL}/{bucket_name}"
+
+            return Response(
+                data={
+                    "presigned_url": signed_url,
+                    "file_key": file_key,
+                    "base_url": base_url,
+                    "direct_url": urllib.request.pathname2url(file_key),
+                },
+                status=HTTP_200_OK,
+            )
+
+        except Exception as e:
+            print(e)
+            return Response(
+                status=HTTP_400_BAD_REQUEST,
+            )

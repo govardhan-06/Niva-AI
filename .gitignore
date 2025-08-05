@@ -1,0 +1,4 @@
+.env
+venv/
+__pycache__/
+custard-ai-2c1433df2722.json
