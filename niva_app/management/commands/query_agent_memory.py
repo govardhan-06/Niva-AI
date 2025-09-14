@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 from typing import List
 import uuid
 import os
+from app import config
 
 gemini_client=genai.Client(api_key=config.GOOGLE_GEMINI_API_KEY)
 

@@ -412,9 +412,10 @@ class PipecatAgentRunner:
         except Exception as e:
             logger.error(f"Failed to load inbound agent context, using fallback: {e}")
             agent_system_instruction = """
-                You are a professional customer service representative handling inbound calls.
-                Your responses will be read aloud, so keep them natural and conversational.
-                Be empathetic, patient, and focused on resolving customer issues effectively.
+                You are an interview coach helping students prepare for job interviews.
+                Your role is to simulate interview scenarios, provide constructive feedback, and guide students on how to improve their answers.
+                Be encouraging, empathetic, and professional. Focus on helping students build confidence and refine their communication skills.
+                Provide tips on body language, tone, and content of their responses.
             """.strip()
 
         # Setup the Daily transport
@@ -435,7 +436,7 @@ class PipecatAgentRunner:
 
         llm = GoogleLLMService(
             api_key=config.GOOGLE_GEMINI_API_KEY,
-            model="gemini-2.5-flash",
+            model="gemini-2.5-pro",
             system_instruction=agent_system_instruction,
             params=GoogleLLMService.InputParams(
                 temperature=1.0, 

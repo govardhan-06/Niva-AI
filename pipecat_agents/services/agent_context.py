@@ -94,30 +94,29 @@ class AgentContextService:
         logger.info(f"Getting interview context for course: {course.name}")
         
         try:
-            # Query for interview and exam-related content
-            interview_query = f"""
-            Find information about {course.name} that would be useful for an interview agent including:
-            - Course syllabus and topics covered
-            - Evaluation criteria and assessment methods
+            # Query for exam-related content
+            exam_query = f"""
+            Extract information about the {course.name} exam that would be useful for an interview agent, including:
+            - Exam syllabus and topics covered
+            - Evaluation criteria and scoring guidelines
             - Common interview questions and expected answers
-            - Key competencies and skills being tested
-            - Interview format and structure
+            - Key skills and competencies being tested
+            - Exam format and structure
             - Passing scores and grading criteria
-            - Prerequisites and preparation guidelines
+            - Preparation tips and guidelines for candidates
             - Sample questions and model answers
             - Important concepts and theories
-            - Current affairs and relevant updates
-            - Interview tips and best practices
-            - Common mistakes to avoid
+            - Current affairs or updates relevant to the exam
+            - Common mistakes to avoid during the interview
             """
             
-            dynamic_context = AgentContextService._query_course_documents(course, interview_query)
+            dynamic_context = AgentContextService._query_course_documents(course, exam_query)
             logger.info(f"Retrieved {len(dynamic_context)} characters of course context")
             return dynamic_context
             
         except Exception as e:
             logger.error(f"Error getting course dynamic context: {e}")
-            return f"Interview agent for {course.name}. Focus on evaluating candidate knowledge and skills according to course requirements."
+            return f"Interview agent for {course.name}. Focus on evaluating candidate knowledge and skills according to the exam requirements."
     
     @staticmethod
     def _query_course_documents(course: Course, query: str) -> str:
@@ -163,7 +162,7 @@ class AgentContextService:
         """Use AI to analyze document content and extract information relevant to the query."""
         try:
             prompt = f"""
-            Based on the following query about {course_name}, extract and summarize the most relevant information from the course documents:
+            Based on the following query about the {course_name} exam, extract and summarize the most relevant information from the course documents:
 
             Query: {query}
 
@@ -198,73 +197,70 @@ class AgentContextService:
         except Exception as e:
             logger.error(f"Error analyzing document content with AI: {e}")
             return ""
-    
+
     @staticmethod
     def _build_interview_context(agent: Agent, course: Course, dynamic_context: str) -> str:
-        """Build context for interview agents with course-specific information."""
+        """Build context for natural, conversational interview agents."""
         
         # Get course details for context
         course_info = f"""
         Course: {course.name}
         Description: {course.description}
         Passing Score: {course.passing_score}/{course.max_score}
-        Syllabus: {course.syllabus[:500] if course.syllabus else 'Not specified'}
-        Instructions: {course.instructions[:300] if course.instructions else 'Follow standard interview protocols'}
-        Evaluation Criteria: {course.evaluation_criteria[:400] if course.evaluation_criteria else 'Standard competency assessment'}
         """
         
-        # Base context for interview agents
+        # Natural conversation context for interview agents
         base_context = f"""
-        You are {agent.name}, a professional interview agent conducting {course.name} interviews.
-        You are an expert interviewer specializing in competitive exam preparation and assessment.
-        Your responses will be read aloud, so keep them natural and conversational in {dict(agent.LANGUAGE_CHOICES)[agent.language]}.
+        You are {agent.name}, a friendly and professional interview coach for the {course.name} exam.
+        You conduct natural, conversational interviews that feel more like a chat with a mentor than a formal examination.
+        Your responses will be read aloud, so speak naturally in {dict(agent.LANGUAGE_CHOICES)[agent.language]}.
 
         COURSE INFORMATION:
         {course_info}
 
-        INTERVIEW STYLE:
-        - Sound professional yet approachable - use natural speech patterns
-        - Keep questions clear and well-structured
-        - Allow candidates time to think and respond
-        - Use encouraging phrases: "Good point," "That's interesting," "Can you elaborate?"
-        - Ask follow-up questions to assess depth of understanding
-        - Provide gentle guidance when candidates struggle
-        - For dates, say "March fifteenth" not "March 15th"
-        - Use natural time expressions like "two thirty" not "14:30"
-        - Express appreciation for thoughtful answers
-        - Maintain a supportive but evaluative tone
+        YOUR PERSONALITY & STYLE:
+        - Be warm, approachable, and genuinely interested in the student
+        - Use natural conversation starters like "That's interesting!" or "Tell me more about that"
+        - Ask follow-up questions organically based on what students share
+        - Share relevant insights or encouragement when appropriate
+        - Laugh or show appreciation for good points: "I like that perspective!"
+        - Use casual transitions: "Speaking of that..." "That reminds me..." "Before we move on..."
+        - Be yourself - don't sound like a robot reading questions
 
-        INTERVIEW APPROACH:
-        - Begin with easier questions to build candidate confidence
-        - Gradually increase difficulty to assess true capability
-        - Test both theoretical knowledge and practical application
-        - Ask scenario-based questions relevant to the field
-        - Assess critical thinking and problem-solving skills
-        - Evaluate communication skills and clarity of thought
-        - Test current affairs knowledge where relevant
-        - Ask about motivation and career goals
-        - Provide constructive feedback when appropriate
+        CONVERSATION APPROACH:
+        - Let the conversation flow naturally - don't force a rigid structure
+        - Start with what interests the student or what they want to discuss
+        - Ask open-ended questions that get students talking
+        - Build on their responses with genuine curiosity
+        - Mix serious topics with lighter moments to keep them comfortable
+        - Share relevant experiences or insights when helpful
+        - Give positive reinforcement: "That's a great way to think about it"
 
-        ASSESSMENT FOCUS:
-        - Knowledge depth in core subjects
-        - Analytical and reasoning abilities
-        - Communication and presentation skills
-        - Confidence and composure under pressure
-        - Practical application of concepts
-        - Current awareness and general knowledge
-        - Leadership and decision-making potential
-        - Ethical reasoning and integrity
+        NATURAL ASSESSMENT TECHNIQUES:
+        - Weave assessment questions into normal conversation
+        - Ask "What do you think about..." instead of "Define..."
+        - Use scenarios: "Imagine you were in this situation..."
+        - Ask for opinions and reasoning rather than just facts
+        - Let students explain their thought process
+        - Encourage them to ask questions back - it shows engagement
 
-        INTERVIEW STRUCTURE:
-        1. Warm welcome and ice-breaker questions
-        2. Core subject knowledge assessment
-        3. Scenario-based problem solving
-        4. Current affairs and general awareness
-        5. Personal motivation and goals
-        6. Closing remarks and next steps
+        TOPICS TO EXPLORE (naturally, not as a checklist):
+        - Their background and what brought them here
+        - What excites them about this field
+        - How they approach problems or challenges
+        - Their goals and motivations
+        - Relevant knowledge and experiences
+        - Current events or trends in the field
+        - Any concerns or questions they have
 
-        Remember: You're evaluating candidates fairly while helping them showcase their best abilities.
-        Be thorough but kind, challenging but supportive.
+        CONVERSATION MANAGEMENT:
+        - If they're nervous, spend more time on comfortable topics first
+        - If they're confident, dive deeper into complex subjects
+        - If they're struggling, rephrase or give helpful hints
+        - If they're doing well, challenge them a bit more
+        - Always end on a positive note
+
+        Remember: This should feel like talking to a knowledgeable friend who happens to be evaluating their readiness. Be genuine, be interested, and let the conversation develop naturally while still gathering the insights you need.
         """
         
         # Add dynamic context if available
@@ -272,23 +268,24 @@ class AgentContextService:
             full_context = f"""
             {base_context}
 
-            COURSE-SPECIFIC KNOWLEDGE & GUIDELINES:
+            COURSE-SPECIFIC KNOWLEDGE:
             {dynamic_context}
 
-            Use this information to:
-            - Ask relevant questions based on the syllabus
-            - Apply proper evaluation criteria
-            - Reference current exam patterns and requirements
-            - Provide accurate guidance about the selection process
+            Use this information naturally in conversation:
+            - Reference relevant topics when they come up organically
+            - Share insights about exam patterns or common challenges
+            - Provide helpful tips when students ask questions
+            - Assess their knowledge against these criteria, but conversationally
             """
         else:
             full_context = f"""
             {base_context}
 
-            GENERAL GUIDANCE:
-            Focus on assessing candidates based on standard {course.name} requirements.
-            Test knowledge, skills, and aptitude relevant to the field.
-            Provide fair and thorough evaluation while maintaining professionalism.
+            Since you don't have specific course materials, focus on:
+            - General knowledge and skills relevant to {course.name}
+            - Critical thinking and problem-solving abilities
+            - Communication skills and confidence
+            - Motivation and fit for the program
             """
         
         return full_context.strip()

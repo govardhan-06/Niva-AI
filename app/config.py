@@ -18,7 +18,7 @@ NIVA_APP_URL=os.getenv("NIVA_APP_URL") or ""
 AWS_BUCKET_NAME=os.getenv("AWS_BUCKET_NAME") or "niva-ai-bucket"
 AWS_ACCESS_KEY_ID=os.getenv("AWS_ACCESS_KEY_ID") or ""
 AWS_SECRET_ACCESS_KEY=os.getenv("AWS_SECRET_ACCESS_KEY") or ""
-AWS_REGION=os.getenv("AWS_REGION") or "eu-north-1"
+AWS_REGION=os.getenv("AWS_REGION") or "eu-central-1"
 
 GOOGLE_GEMINI_API_KEY= os.getenv('GOOGLE_GEMINI_API_KEY') or ""
 

@@ -17,7 +17,6 @@ import urllib.parse
 
 from niva_app.management.commands.query_agent_memory import gemini_client
 from niva_app.models import Agent, Memory, Course, MemoryType
-from app.config import FRONTEND_URL
 from niva_app.lib.utils import FileType, FileTypeInfo
 from niva_app.models.rag import Document
 from niva_app.services.rag import process_pdf

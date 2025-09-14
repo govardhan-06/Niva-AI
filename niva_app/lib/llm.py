@@ -5,6 +5,7 @@ from google import genai
 from typing import Iterable, Optional, List
 import json
 import numpy as np
+from app import config
 
 gemini_client=genai.Client(api_key=config.GOOGLE_GEMINI_API_KEY)
 

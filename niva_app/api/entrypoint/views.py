@@ -1,5 +1,7 @@
 import logging
 import asyncio
+import random
+import uuid
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
@@ -48,14 +50,8 @@ class EntrypointVoiceAPI(APIView):
             
             data = serializer.validated_data
             
-            # Extract Twilio data
-            twilio_data = {
-                'from': "+1987654321",
-                'to': "+919400613857", 
-                'callsid': "CA1234567890abcdef1234567890abcdef",
-                'accountsid': "AC1234567890abcdef1234567890abcdef",
-                'callstatus': "ringing"
-            }
+            # Generate random Twilio data
+            twilio_data = self._generate_random_twilio_data()
             
             course_id = str(data['course_id'])
             agent_id = str(data['agent_id']) if data.get('agent_id') else None
@@ -70,6 +66,16 @@ class EntrypointVoiceAPI(APIView):
                 {'success': False, 'error': 'System error'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+    
+    def _generate_random_twilio_data(self):
+        """Generate random Twilio data for testing."""
+        return {
+            'from': f"+1{random.randint(1000000000, 9999999999)}",  # Random US phone number
+            'to': f"+91{random.randint(7000000000, 9999999999)}",  # Random Indian phone number
+            'callsid': f"CA{uuid.uuid4().hex}",  # Random Call SID
+            'accountsid': f"AC{uuid.uuid4().hex}",  # Random Account SID
+            'callstatus': random.choice(["ringing", "in-progress", "completed"])  # Random call status
+        }
     
     def _process_inbound_call_async(self, twilio_data, course_id, agent_id=None):
         """Process the inbound call asynchronously."""
