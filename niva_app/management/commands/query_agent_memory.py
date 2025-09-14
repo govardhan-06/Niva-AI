@@ -14,9 +14,7 @@ from typing import List
 import uuid
 import os
 
-GOOGLE_GEMINI_API_KEY="AIzaSyCCqDsolu3XWOTek_5Gpn0aqja7R7HaJcw"
-
-gemini_client=genai.Client(api_key=GOOGLE_GEMINI_API_KEY)
+gemini_client=genai.Client(api_key=config.GOOGLE_GEMINI_API_KEY)
 
 class SearchResult(BaseModel):
     content: str = Field(..., description="The content of the search result")

@@ -6,9 +6,7 @@ from typing import Iterable, Optional, List
 import json
 import numpy as np
 
-GOOGLE_GEMINI_API_KEY="AIzaSyCCqDsolu3XWOTek_5Gpn0aqja7R7HaJcw"
-
-gemini_client=genai.Client(api_key=GOOGLE_GEMINI_API_KEY)
+gemini_client=genai.Client(api_key=config.GOOGLE_GEMINI_API_KEY)
 
 def get_similarity(text1, text2):
     embeddings1 = text1 and create_embedding(text1)

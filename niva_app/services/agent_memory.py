@@ -5,6 +5,7 @@ import requests
 import threading
 import shutil
 from pathlib import Path
+import tempfile
 
 import rest_framework.exceptions
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -20,10 +21,9 @@ from app.config import FRONTEND_URL
 from niva_app.lib.utils import FileType, FileTypeInfo
 from niva_app.models.rag import Document
 from niva_app.services.rag import process_pdf
-from niva_app.services.local_storage import LocalStorageService
+from niva_app.services.s3_storage import S3StorageService
 
 PERSIST_DIRECTORY = "./chroma_db"
-LOCAL_STORAGE_ROOT = "./storage"  # Local storage directory
 
 logger = logging.getLogger("root")
 
@@ -31,7 +31,7 @@ class MemoryService:
     def __init__(self, course: Course):
         self.course = course
         self.collection_name = f"course-{self.course.pk}"
-        self.storage_service = LocalStorageService()
+        self.storage_service = S3StorageService()
 
     def delete_memory(self, id: str):
         try:
@@ -39,12 +39,12 @@ class MemoryService:
 
             Document.objects.filter(memory=memory).delete()
 
-            # Delete associated local file if exists
+            # Delete associated S3 file if exists
             if memory.url and not memory.url.startswith('http'):
                 try:
                     self.storage_service.delete_file(memory.url)
                 except Exception as e:
-                    logger.error(f"Failed to delete local file: {e}")
+                    logger.error(f"Failed to delete S3 file: {e}")
 
             memory.delete()
 
@@ -71,62 +71,71 @@ class MemoryService:
             logger.error(f"Failed to add memory: {e}")
             raise
 
-    def add_pdf_memory(self, url: str, name: str) -> Memory: 
+    def add_pdf_memory(self, s3_key: str, name: str) -> Memory: 
         """
-        Process a PDF from local storage and store its contents with vector embeddings
+        Process a PDF from S3 storage and store its contents with vector embeddings
         """
-        logger.info(f"Processing PDF from local storage: {url}")
+        logger.info(f"Processing PDF from S3: {s3_key}")
 
         memory = Memory.objects.create(
-            url=url,
+            url=s3_key,
             type=MemoryType.DOCUMENT,
             course=self.course,
             name=name  
         )
 
         try:
-            # Get the local file path
-            local_file_path = self.storage_service.get_file_path(url)
-            
-            if not os.path.exists(local_file_path):
-                raise ValueError(f"File not found in local storage: {url}")
-            
-            logger.info(f"Processing PDF from local path: {local_file_path}")
+            # Download file from S3 to temporary location for processing
+            with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as temp_file:
+                temp_file_path = temp_file.name
+                
+            try:
+                self.storage_service.download_file(s3_key, temp_file_path)
+                
+                if not os.path.exists(temp_file_path):
+                    raise ValueError(f"File not found after download from S3: {s3_key}")
+                
+                logger.info(f"Processing PDF from temporary path: {temp_file_path}")
 
-            # Process the PDF directly from local storage
-            documents = process_pdf(local_file_path)
+                # Process the PDF from temporary location
+                documents = process_pdf(temp_file_path)
 
-            if not documents:
-                logger.warning(f"No text content extracted from PDF: {local_file_path}")
-                raise ValueError(f"No text content extracted from PDF: {name}")
+                if not documents:
+                    logger.warning(f"No text content extracted from PDF: {temp_file_path}")
+                    raise ValueError(f"No text content extracted from PDF: {name}")
 
-            logger.info(f"Extracted {len(documents)} chunks from PDF")
+                logger.info(f"Extracted {len(documents)} chunks from PDF")
 
-            # Generate embeddings
-            embeddings_response = gemini_client.models.embed_content(
-                model="gemini-embedding-exp-03-07",
-                contents=documents
-            )
-
-            embeddings_list = [embedding.values for embedding in embeddings_response.embeddings]
-            document_instances = [
-                Document(
-                    id=uuid.uuid4(),
-                    content=doc_content,
-                    embedding=embedding,
-                    memory=memory
+                # Generate embeddings
+                embeddings_response = gemini_client.models.embed_content(
+                    model="gemini-embedding-exp-03-07",
+                    contents=documents
                 )
-                for doc_content, embedding in zip(documents, embeddings_list)
-            ]
 
-            Document.objects.bulk_create(
-                document_instances,
-                batch_size=1000 
-            )
-            
-            logger.info(f"Successfully processed PDF: {name} with {len(document_instances)} chunks")
-            memory.save()
-            return memory
+                embeddings_list = [embedding.values for embedding in embeddings_response.embeddings]
+                document_instances = [
+                    Document(
+                        id=uuid.uuid4(),
+                        content=doc_content,
+                        embedding=embedding,
+                        memory=memory
+                    )
+                    for doc_content, embedding in zip(documents, embeddings_list)
+                ]
+
+                Document.objects.bulk_create(
+                    document_instances,
+                    batch_size=1000 
+                )
+                
+                logger.info(f"Successfully processed PDF: {name} with {len(document_instances)} chunks")
+                memory.save()
+                return memory
+                
+            finally:
+                # Clean up temporary file
+                if os.path.exists(temp_file_path):
+                    os.unlink(temp_file_path)
 
         except ValueError as e:
             logger.error(f"Validation error: {e}")
@@ -139,7 +148,7 @@ class MemoryService:
 
     def upload_file(self, file, name: str) -> str:
         """
-        Upload a file to local storage and return the file path
+        Upload a file to S3 storage and return the S3 key
         """
         try:
             # Generate unique filename
@@ -149,11 +158,16 @@ class MemoryService:
             # Create course-specific directory
             course_dir = f"course_{self.course.id}"
             
-            # Save file to local storage
-            file_path = self.storage_service.save_file(file, course_dir, unique_filename)
+            # Save file to S3
+            s3_key = self.storage_service.save_file(
+                file, 
+                subdirectory=course_dir, 
+                filename=unique_filename,
+                content_type=file.content_type
+            )
             
-            logger.info(f"File uploaded to local storage: {file_path}")
-            return file_path
+            logger.info(f"File uploaded to S3: {s3_key}")
+            return s3_key
             
         except Exception as e:
             logger.error(f"Error uploading file: {e}")

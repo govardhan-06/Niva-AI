@@ -27,7 +27,6 @@ from rest_framework.authentication import TokenAuthentication, get_authorization
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.serializers import Serializer, CharField, BooleanField
 
-from app.config import GCS_BUCKET_NAME, GCP_SA_KEY, GCS_BASE_URL
 from niva_app.models import User
 
 

@@ -51,20 +51,20 @@ class AddMemory(BaseAPI):
                 )
             
             try:
-                # Upload file to local storage
-                file_path = memory_service.upload_file(file, data["name"])
+                # Upload file to S3
+                s3_key = memory_service.upload_file(file, data["name"])
                 
-                # Add memory with local file path
+                # Add memory with S3 key
                 memory_service.add_memory(
                     memory_type=data["type"],
-                    url=file_path,
+                    url=s3_key,
                     name=data["name"] 
                 )
                 
                 return Response(
                     {
                         "message": "Document uploaded and processed successfully",
-                        "file_path": file_path
+                        "s3_key": s3_key
                     },
                     status=HTTP_200_OK,
                 )
@@ -137,20 +137,20 @@ class UploadDocument(BaseAPI):
             file = data["file"]
             name = data["name"]
             
-            # Upload file to local storage
-            file_path = memory_service.upload_file(file, name)
+            # Upload file to S3
+            s3_key = memory_service.upload_file(file, name)
             
-            # Add memory with local file path
+            # Add memory with S3 key
             memory_service.add_memory(
                 memory_type="document",
-                url=file_path,
+                url=s3_key,
                 name=name
             )
             
             return Response(
                 {
                     "message": "Document uploaded and processed successfully",
-                    "file_path": file_path,
+                    "s3_key": s3_key,
                     "name": name
                 },
                 status=HTTP_200_OK,
@@ -275,8 +275,12 @@ class MemoryOutputSerializer(serializers.ModelSerializer):
 
     def get_file_url(self, obj):
         if obj.type == "document":
-            # Return local file URL
-            from niva_app.services.local_storage import LocalStorageService
-            storage_service = LocalStorageService()
-            return storage_service.get_file_url(obj.url)
+            # Return S3 presigned URL
+            from niva_app.services.s3_storage import S3StorageService
+            storage_service = S3StorageService()
+            try:
+                return storage_service.get_file_url(obj.url, expiration=3600)  # 1 hour expiry
+            except Exception as e:
+                logger.error(f"Error generating S3 URL: {e}")
+                return None
         return obj.url

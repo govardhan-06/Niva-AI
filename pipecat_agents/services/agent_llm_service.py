@@ -180,9 +180,9 @@ async def configure_language_services(agent_id: str):
         
         # Configure AWS Polly TTS
         tts = AWSPollyTTSService(
-            aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
-            api_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
-            region=os.getenv("AWS_REGION", "us-east-1"),
+            aws_access_key_id=config.AWS_ACCESS_KEY_ID,
+            api_key=config.AWS_SECRET_ACCESS_KEY,
+            region=config.AWS_REGION,
             voice_id=lang_config['tts_voice_id'],
             params=AWSPollyTTSService.InputParams(
                 language=lang_config['tts_language'],
