@@ -6,8 +6,7 @@ Key Methods:
 ● create_room(properties): Creates a new Daily.co room with SIP capabilities 
 ● delete_room(room_name): Deletes an existing Daily.co room 
 ● create_room_token(room_name, expires_in): Creates an authentication token for a room 
-● create_and_save_room(caller_phone_number, company_id, twilio_phone_number_id, 
-call_sid): Creates a room and saves it to the database as a DailyCall 
+● create_and_save_room(caller_phone_number, course_id, agent_id, call_sid): Creates a room and saves it to the database as a DailyCall 
 ● get_call_recording(daily_call_id): Retrieves recording information 
 
 Interfaces: 
@@ -28,14 +27,14 @@ from pipecat.transports.services.helpers.daily_rest import (
 
 from django.contrib.auth import get_user_model
 from niva_app.models.dailycalls import DailyCall
-from niva_app.models.company import Company
-from niva_app.models.customer import Customer
-from niva_app.models.phonenumber import PhoneNumber
+from niva_app.models.course import Course
+from niva_app.models.students import Student
 from asgiref.sync import sync_to_async
 from django.db import transaction
+import logging
 
-#TODO:Multiple session parallely not supported
-#TODO: Maintain all the active session and close the session specifically using its particular unique id
+logger = logging.getLogger(__name__)
+
 class DailyService:
     def __init__(self, api_key: str = None, api_url: str = "https://api.daily.co/v1"):
         self.api_key = api_key or os.environ.get("DAILY_API_KEY") 
@@ -174,30 +173,28 @@ class DailyService:
             await self.close()
     
     async def create_and_save_room(self, 
-                              caller_phone_number: str, 
-                              company_id: str, 
-                              agent_id: str,
-                              twilio_phone_number_id: str, 
-                              call_sid: str,
-                              user=None) -> Dict[str, Any]:
+                          caller_phone_number: str, 
+                          course_id: str, 
+                          agent_id: str,
+                          call_sid: str,
+                          user=None) -> Dict[str, Any]:
         """
         Creates a room and saves it to the database as a DailyCall.
         
         Args:
             caller_phone_number: Phone number of the caller
-            company_id: ID of the company
+            course_id: ID of the course
             agent_id: ID of the agent
-            twilio_phone_number_id: ID of the Twilio phone number
-            call_sid: Twilio call SID
-            user: Authenticated user (to get company details)
+            call_sid: Call SID
+            user: Authenticated user (optional)
             
         Returns:
             Dictionary containing room and call details
         """
         sanitized_phone = caller_phone_number.replace("+", "").replace(" ", "").replace("-", "")
         
-        room_name = f"qulander_{sanitized_phone}_{company_id}"
-        sip_display_name = f"qulander_{sanitized_phone[-4:]}_{company_id}"
+        room_name = f"niva_{sanitized_phone}_{course_id}"
+        sip_display_name = f"niva_{sanitized_phone[-4:]}_{course_id}"
 
         room_details = await self.create_room(
             room_name=room_name,
@@ -215,48 +212,44 @@ class DailyService:
         @sync_to_async
         def create_daily_call_record():
             try:
-                # Get company from user if provided, otherwise use company_id
-                if user and hasattr(user, 'company'):
-                    company = user.company
-                else:
-                    company = Company.objects.get(id=company_id)
+                # Get course
+                course = Course.objects.get(id=course_id)
                 
-                # Get phone number
-                phone_number = PhoneNumber.objects.get(id=twilio_phone_number_id)
-                
-                # Create a placeholder customer or get existing one
-                customer, created = Customer.objects.get_or_create(
+                # Create a placeholder student or get existing one by phone number
+                student, created = Student.objects.get_or_create(
                     phone_number=caller_phone_number,
                     defaults={
                         'first_name': 'Unknown',
-                        'last_name': 'Caller',
+                        'last_name': 'Student',
                         'email': '',
                         'gender': 'UNKNOWN'
                     }
                 )
                 
-                # Associate customer with company if not already associated
-                if not customer.companies.filter(id=company_id).exists():
-                    customer.companies.add(company)
+                # Associate student with course if not already associated
+                if not student.course.filter(id=course_id).exists():
+                    student.course.add(course)
+                    logger.info(f"Associated student {student.phone_number} with course {course.name}")
                 
                 # Create DailyCall record
                 with transaction.atomic():
                     daily_call = DailyCall.objects.create(
-                        company=company,
-                        customer=customer,
-                        phone_number=phone_number,
-                        agent_id=agent_id,
+                        course=course,
+                        student=student,
+                        agent_id=agent_id,  # Store agent_id directly
                         call_sid=call_sid,
                         call_summary="",  
-                        recording_url="",  
-                        needs_staff_followup=False,  
-                        staff_message=None  
+                        transcription=""
                     )
                 
+                logger.info(f"Created DailyCall record: {daily_call.id}")
                 return daily_call
                 
+            except Course.DoesNotExist:
+                logger.error(f"Course with ID {course_id} not found")
+                raise ValueError(f"Course with ID {course_id} not found")
             except Exception as e:
-                print(f"Error saving DailyCall: {e}")
+                logger.error(f"Error saving DailyCall: {e}")
                 raise e
         
         # Create the database record
@@ -268,10 +261,13 @@ class DailyService:
             "call": {
                 "id": str(daily_call.id),
                 "caller_phone_number": caller_phone_number,
-                "company_id": str(daily_call.company.id),
-                "twilio_phone_number_id": twilio_phone_number_id,
-                "twilio_call_sid": call_sid,
+                "course_id": str(daily_call.course.id),
+                "course_name": daily_call.course.name,
+                "student_id": str(daily_call.student.id) if daily_call.student else None,
+                "agent_id": agent_id,  # Use the passed agent_id directly
+                "call_sid": call_sid,
                 "daily_room_id": str(room_details["id"]), 
+                "daily_room_name": room_details["name"],
                 "daily_room_token": room_details["token"], 
                 "status": "created",
                 "created_at": room_details["created_at"]
@@ -283,7 +279,6 @@ class DailyService:
         Retrieves recording information for a specific Daily room.
         
         Args:
-            api_key (str): Your Daily API key
             room_name (str): The name of the room for which to retrieve recordings
             
         Returns:
@@ -301,7 +296,7 @@ class DailyService:
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
-            print(f"Error retrieving recording: {e}")
+            logger.error(f"Error retrieving recording: {e}")
             return None
     
     async def get_recording_by_id(self, recording_id):
@@ -309,7 +304,6 @@ class DailyService:
         Retrieves information for a specific recording by ID.
         
         Args:
-            api_key (str): Your Daily API key
             recording_id (str): The ID of the recording to retrieve
             
         Returns:
@@ -327,5 +321,5 @@ class DailyService:
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
-            print(f"Error retrieving recording: {e}")
+            logger.error(f"Error retrieving recording: {e}")
             return None

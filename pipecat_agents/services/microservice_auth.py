@@ -37,6 +37,7 @@ class MicroserviceAuthentication(authentication.BaseAuthentication):
     
     def is_valid_token(self, token):
         """Validate the token against the configured PIPECAT_BOT_API_TOKEN"""
+        print("Token: "+token)
         expected_token = getattr(settings, 'PIPECAT_BOT_API_TOKEN', os.getenv('PIPECAT_BOT_API_TOKEN'))
         return token == expected_token
     

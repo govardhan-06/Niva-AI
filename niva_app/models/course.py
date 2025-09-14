@@ -18,8 +18,6 @@ class Course(TimestampBase):
     Fields:
         name (CharField): Course name
         description (TextField): Detailed description of the course
-        duration_minutes (IntegerField): Expected interview duration in minutes
-        total_rounds (IntegerField): Number of interview rounds
         is_active (BooleanField): Whether course is currently active
         passing_score (DecimalField): Minimum score required to pass
         max_score (DecimalField): Maximum possible score
@@ -39,16 +37,6 @@ class Course(TimestampBase):
     description = TextField(
         blank=True,
         help_text="Detailed description of the course and what it covers"
-    )
-    
-    duration_minutes = IntegerField(
-        default=30,
-        help_text="Expected interview duration in minutes"
-    )
-    
-    total_rounds = IntegerField(
-        default=1,
-        help_text="Number of interview rounds in this course"
     )
     
     is_active = BooleanField(
@@ -75,11 +63,6 @@ class Course(TimestampBase):
         help_text="Course syllabus and topics that will be covered in the interview"
     )
     
-    prerequisites = TextField(
-        blank=True,
-        help_text="Prerequisites and recommended preparation for this course"
-    )
-    
     instructions = TextField(
         blank=True,
         help_text="Special instructions for candidates taking this course"
@@ -91,7 +74,7 @@ class Course(TimestampBase):
     )
 
     def __str__(self):
-        return f"{self.name} ({self.course_type})"
+        return f"{self.name}"
 
     def get_success_rate(self):
         """Calculate success rate based on students who passed"""
@@ -109,6 +92,5 @@ class Course(TimestampBase):
         ordering = ['-created_at']
         indexes = [
             Index(fields=['name']),
-            Index(fields=['course_type']),
             Index(fields=['is_active']),
         ]

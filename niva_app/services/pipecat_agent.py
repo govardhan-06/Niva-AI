@@ -7,14 +7,11 @@ import datetime
 from typing import Optional, Dict, Any, Union
 from django.db import transaction
 from django.core.exceptions import ObjectDoesNotExist
-from custard_app.lib.llm import gemini_client
-from custard_app.services.storage import StorageService
-from custard_app.services.daily_service import DailyService
-from custard_app.models.dailycalls import DailyCall
-from custard_app.models.company import Company
-from custard_app.models.customer import Customer
-from custard_app.models.phonenumber import PhoneNumber
-from app.config import GCS_BUCKET_NAME, GCS_BASE_URL
+from niva_app.lib.llm import gemini_client
+from niva_app.services.daily_service import DailyService
+from niva_app.models.dailycalls import DailyCall
+from niva_app.models.course import Course
+from niva_app.models.students import Student
 import base64
 from django.db.utils import IntegrityError
 from asgiref.sync import sync_to_async
@@ -28,7 +25,7 @@ class AgentService:
     def __init__(self):
         # Use the correct config keys that match your settings
         self.base_url = config.PIPECAT_AGENTS_URL
-        self.token = config.PIPECAT_BOT_TOKEN
+        self.token = config.PIPECAT_BOT_API_TOKEN
         
         self.headers = {
             "Authorization": f"Bearer {self.token}",
@@ -36,17 +33,17 @@ class AgentService:
         }
     
     def handle_voice_call(self, phone_number, daily_call_id, daily_room_url, 
-                         sip_endpoint, twilio_data, company_id, agent_id, token=None):
+                         sip_endpoint, twilio_data, course_id, agent_id, token=None):
         """
         Forwards voice call requests to pipecat_agents service.
         
         Args:
-            phone_number: Customer's phone number
+            phone_number: Student's phone number
             daily_call_id: Daily.co call identifier
             daily_room_url: Daily.co room URL
             sip_endpoint: SIP endpoint for the call
             twilio_data: Twilio call data
-            company_id: Company identifier (required)
+            course_id: Course identifier (required)
             agent_id: Agent identifier (required)
             token: Daily.co authentication token (required)
         
@@ -62,7 +59,7 @@ class AgentService:
                 "daily_room_url": daily_room_url,
                 "sip_endpoint": sip_endpoint,
                 "twilio_data": twilio_data,
-                "company_id": company_id, 
+                "course_id": course_id, 
                 "agent_id": agent_id,    
                 "token": token or "",      
             }
@@ -164,10 +161,10 @@ class AgentService:
 class Summary(BaseModel):
     summary: str
 
-class Customer_details(BaseModel):
+class Student_details(BaseModel):
     name: Optional[str] = None
-    phone: Optional[str] = None
     email: Optional[str] = None
+    phone_number: Optional[str] = None
     interest_level: Optional[str] = None
     timeline: Optional[str] = None
     notes: Optional[str] = None
@@ -175,7 +172,7 @@ class Customer_details(BaseModel):
 
 class AgentCallProcessor:
     """
-    Service to handle post-call processing including recording upload and data persistence
+    Service to handle post-call processing including data persistence
     """
     
     @staticmethod
@@ -190,12 +187,11 @@ class AgentCallProcessor:
         {
             "call_id": str,
             "session_id": str,
-            "company_id": str,
+            "course_id": str,
             "caller_number": str,
             "agent_id": str,
             "transcript_content": str,
-            "recording_file_data": bytes or None,
-            "customer_details": dict or None,
+            "student_details": dict or None,
             "call_status": str
         }
         
@@ -209,27 +205,24 @@ class AgentCallProcessor:
             call_id = call_data.get("call_id")
             session_id = call_data.get("session_id")
             caller_number = call_data.get("caller_number")
-            company_id = call_data.get("company_id")
+            course_id = call_data.get("course_id")
             agent_id = call_data.get("agent_id")
             transcript_content = call_data.get("transcript_content")
-            recording_file_data = call_data.get("recording_file_data")
-            customer_details = call_data.get("customer_details")
+            student_details = call_data.get("student_details")
 
-            call_summary = AgentCallProcessor.generate_call_summary(transcript_content)
-
-            print("Customer details from Agent: "+str(customer_details))
+            print("Student details from Agent: "+str(student_details))
             
             # Validate required fields
-            if not all([call_id, session_id, company_id, agent_id]):
-                raise ValueError("Missing required fields: call_id, session_id, company_id, agent_id")
+            if not all([call_id, session_id, course_id, agent_id]):
+                raise ValueError("Missing required fields: call_id, session_id, course_id, agent_id")
             
-            if customer_details is None and transcript_content:
-                logger.info("No customer details provided, extracting from transcript")
-                customer_details = AgentCallProcessor.populate_customer_details(transcript_content).dict()
+            if student_details is None and transcript_content:
+                logger.info("No student details provided, extracting from transcript")
+                student_details = AgentCallProcessor.populate_student_details(transcript_content).dict()
             
-            print("Fallback mechanism: "+str(customer_details))
+            print("Fallback mechanism: "+str(student_details))
 
-            # Generate call summary first
+            # Generate call summary
             call_summary = ""
             try:
                 call_summary = AgentCallProcessor.generate_call_summary(transcript_content)
@@ -237,49 +230,30 @@ class AgentCallProcessor:
             except Exception as e:
                 logger.error(f"Error generating call summary: {e}")
             
-            # Process recording upload if available
-            recording_url = None
-            if recording_file_data:
+            # Process student data if available
+            student_id = None
+            if student_details:
+                logger.info(f"Processing student data: {student_details}")
                 try:
-                    recording_url = await AgentCallProcessor.handle_recording_upload(
-                        recording_file_data, call_id, session_id
+                    student_id = await AgentCallProcessor.handle_student_data(
+                        student_details, course_id
                     )
-                    if recording_url:
-                        logger.info(f"Recording uploaded successfully: {recording_url}")
-                    else:
-                        logger.warning("Recording upload returned None")
+                    logger.info(f"Student processed - student_id: {student_id}")
                 except Exception as e:
-                    logger.error(f"Error handling recording upload: {e}")
+                    logger.error(f"Error handling student data: {e}")
             else:
-                logger.info("No recording data provided")
-            
-            # Process customer data if available
-            customer_id = None
-            phone_number_id = None
-            if customer_details:
-                logger.info(f"Processing customer data: {customer_details}")
-                try:
-                    customer_id, phone_number_id = await AgentCallProcessor.handle_customer_data(
-                        customer_details, company_id
-                    )
-                    logger.info(f"Customer processed - customer_id: {customer_id}, phone_number_id: {phone_number_id}")
-                except Exception as e:
-                    logger.error(f"Error handling customer data: {e}")
-            else:
-                logger.info("No customer details provided")
+                logger.info("No student details provided")
             
             # Save call data to database
             daily_call = None
             try:
                 daily_call = await AgentCallProcessor.save_call_data_to_db(
                     call_id=call_id,
-                    company_id=company_id,
+                    course_id=course_id,
                     agent_id=agent_id,
-                    customer_id=customer_id,
-                    phone_number_id=phone_number_id,
-                    recording_url=recording_url,
+                    student_id=student_id,
                     transcript_content=transcript_content,
-                    customer_details=customer_details,
+                    student_details=student_details,
                     call_summary=call_summary
                 )
                 if daily_call:
@@ -293,7 +267,7 @@ class AgentCallProcessor:
             try:
                 if caller_number:
                     sanitized_phone = caller_number.replace("+", "").replace(" ", "").replace("-", "")
-                    room_name = f"qulander_{sanitized_phone}_{company_id}"
+                    room_name = f"qulander_{sanitized_phone}_{course_id}"
                     
                     daily_service = DailyService()
                     await daily_service.delete_room(room_name)
@@ -306,10 +280,8 @@ class AgentCallProcessor:
                 "success": True,
                 "call_id": call_id,
                 "daily_call_id": daily_call.id if daily_call else None,
-                "recording_url": recording_url,
-                "customer_created": customer_id is not None,
-                "customer_id": customer_id,
-                "phone_number_id": phone_number_id,
+                "student_created": student_id is not None,
+                "student_id": student_id,
                 "message": "Post-call data processed successfully"
             }
             
@@ -323,145 +295,20 @@ class AgentCallProcessor:
                 "error": str(e),
                 "message": "Failed to process post-call data"
             }
-    
-    @staticmethod
-    async def handle_recording_upload(recording_file_data: Union[bytes, str], call_id: str, session_id: str) -> Optional[str]:
-        """
-        Handle recording upload from binary data or base64 string
-        """
-        try:
-            # Check if recording already exists
-            existing_url = await AgentCallProcessor.check_if_recording_exists_in_gcp(call_id, session_id)
-            if existing_url:
-                logger.info(f"Recording already exists, returning existing URL: {existing_url}")
-                return existing_url
-            
-            # Convert string input to bytes if needed
-            if isinstance(recording_file_data, str):
-                try:
-                    recording_file_data = base64.b64decode(recording_file_data)
-                    logger.info("Successfully decoded base64 recording data")
-                except Exception as e:
-                    logger.error(f"Failed to decode base64 recording data: {e}")
-                    return None
-            
-            # Validate we have binary data at this point
-            if not isinstance(recording_file_data, bytes):
-                logger.error("Invalid recording data format - expected bytes or base64 string")
-                return None
-            
-            # Create temporary file
-            import tempfile
-            import os
-            
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as temp_file:
-                temp_file.write(recording_file_data)
-                temp_file_path = temp_file.name
-            
-            try:
-                # Upload to GCP
-                recording_url = await AgentCallProcessor.upload_recording_to_gcp(
-                    temp_file_path, call_id, session_id
-                )
-                return recording_url
-            finally:
-                # Clean up temp file
-                if os.path.exists(temp_file_path):
-                    os.remove(temp_file_path)
-                    
-        except Exception as e:
-            logger.error(f"Error handling recording upload: {e}")
-            return None
-    
-    @staticmethod
-    async def upload_recording_to_gcp(recording_file_path: str, call_id: str, session_id: str) -> Optional[str]:
-        """
-        Upload the recording to GCP Storage and return the URL.
-        """
-        try:
-            bucket_name = GCS_BUCKET_NAME
-            if not bucket_name:
-                logger.error("GCS_BUCKET_NAME not configured")
-                return None
-
-            # Generate blob path with timestamp for uniqueness
-            timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-            blob_path = f"call_recordings/{call_id}_{session_id}_{timestamp}.wav"
-
-            # Upload the file to GCP Storage
-            logger.info(f"Uploading recording to GCP: {blob_path}")
-            
-            # Make the upload operation async-safe
-            upload_func = sync_to_async(StorageService.upload_blob)
-            success = await upload_func(
-                bucket_name=bucket_name,
-                source_file_name=recording_file_path,
-                destination_blob_name=blob_path
-            )
-
-            if success:
-                # Generate public URL
-                recording_url = f"{GCS_BASE_URL}/{bucket_name}/{blob_path}"
-                logger.info(f"Successfully uploaded recording: {recording_url}")
-                return recording_url
-            else:
-                logger.error(f"Failed to upload recording for call {call_id}")
-                return None
-
-        except Exception as e:
-            logger.error(f"Error uploading recording to GCP Storage: {str(e)}")
-            return None
 
     @staticmethod
-    async def check_if_recording_exists_in_gcp(call_id: str, session_id: str) -> Optional[str]:
+    async def handle_student_data(student_details: dict, course_id: str) -> Optional[str]:
         """
-        Check if a recording file already exists in GCP Storage for the given call and session.
-        """
-        try:
-            bucket_name = GCS_BUCKET_NAME
-            if not bucket_name:
-                logger.error("GCS_BUCKET_NAME not configured")
-                return None
-    
-            def _check_blobs():
-                client = StorageService.get_client()
-                bucket = client.bucket(bucket_name)
-                prefix = f"call_recordings/{call_id}_{session_id}_"
-                blobs = list(bucket.list_blobs(prefix=prefix))
-                
-                for blob in blobs:
-                    if blob.name.endswith('.wav') or blob.name.endswith('.mp3'):
-                        recording_url = f"{GCS_BASE_URL}/{bucket_name}/{blob.name}"
-                        return recording_url
-                return None
-            
-            check_blobs_async = sync_to_async(_check_blobs)
-            result = await check_blobs_async()
-            
-            if result:
-                logger.info(f"Found existing recording: {result}")
-            else:
-                logger.info(f"No existing recording found for call {call_id}, session {session_id}")
-            
-            return result
-
-        except Exception as e:
-            logger.error(f"Error checking if recording exists in GCP Storage: {str(e)}")
-            return None
-
-    @staticmethod
-    async def handle_customer_data(customer_details: dict, company_id: str) -> tuple[Optional[str], Optional[str]]:
-        """
-        Handle customer creation or update and return customer_id and phone_number_id
+        Handle student creation or update and return student_id
         """
         try:
             @sync_to_async
-            def _process_customer_data():
+            def _process_student_data():
                 with transaction.atomic():
-                    # Parse customer details
-                    full_name = customer_details.get("name", "").strip() if customer_details.get("name") else ""
-                    phone = customer_details.get("phone", "").strip() if customer_details.get("phone") else ""
-                    email = customer_details.get("email", "").strip() if customer_details.get("email") else ""
+                    # Parse student details
+                    full_name = student_details.get("name", "").strip() if student_details.get("name") else ""
+                    phone_number = student_details.get("phone_number", "").strip() if student_details.get("phone_number") else ""
+                    email = student_details.get("email", "").strip() if student_details.get("email") else ""
                     
                     # Split name into first and last
                     name_parts = full_name.split(" ", 1)
@@ -469,79 +316,73 @@ class AgentCallProcessor:
                     last_name = name_parts[1] if len(name_parts) > 1 else ""
                     
                     # Clean and format phone number
-                    if phone and not phone.startswith("+"):
-                        phone = f"+{phone}"
+                    if phone_number and not phone_number.startswith("+"):
+                        phone_number = f"+{phone_number}"
                     
-                    # Check if customer already exists by phone number
-                    customer = None
-                    if phone:
+                    # Check if student already exists by phone number
+                    student = None
+                    if phone_number:
                         try:
-                            customer = Customer.objects.get(phone_number=phone)
-                            logger.info(f"Found existing customer: {customer.first_name} {customer.last_name}")
+                            student = Student.objects.get(phone_number=phone_number)
+                            logger.info(f"Found existing student: {student.first_name} {student.last_name}")
                             
-                            # Update existing customer details
+                            # Update existing student details
                             update_fields = []
-                            if first_name and customer.first_name != first_name:
-                                customer.first_name = first_name
+                            if first_name and student.first_name != first_name:
+                                student.first_name = first_name
                                 update_fields.append('first_name')
-                            if last_name and customer.last_name != last_name:
-                                customer.last_name = last_name
+                            if last_name and student.last_name != last_name:
+                                student.last_name = last_name
                                 update_fields.append('last_name')
-                            if email and customer.email != email:
-                                customer.email = email
+                            if email and student.email != email:
+                                student.email = email
                                 update_fields.append('email')
                             
                             if update_fields:
-                                customer.save(update_fields=update_fields)
-                                logger.info(f"Updated customer fields: {', '.join(update_fields)}")
+                                student.save(update_fields=update_fields)
+                                logger.info(f"Updated student fields: {', '.join(update_fields)}")
                                 
-                        except Customer.DoesNotExist:
-                            # Create new customer
-                            customer = Customer.objects.create(
+                        except Student.DoesNotExist:
+                            # Create new student
+                            student = Student.objects.create(
                                 first_name=first_name,
                                 last_name=last_name,
-                                phone_number=phone,
+                                phone_number=phone_number,
                                 email=email,
                                 gender="UNKNOWN"
                             )
-                            logger.info(f"Created new customer: {customer.first_name} {customer.last_name}")
+                            logger.info(f"Created new student: {student.first_name} {student.last_name}")
                         
-                        # Associate customer with company if not already associated
+                        # Associate student with course if not already associated
                         try:
-                            company = Company.objects.get(id=company_id)
-                            if not customer.companies.filter(id=company_id).exists():
-                                customer.companies.add(company)
-                                logger.info(f"Associated customer with company {company.name}")
-                        except Company.DoesNotExist:
-                            logger.error(f"Company with ID {company_id} not found")
+                            course = Course.objects.get(id=course_id)
+                            if not student.course.filter(id=course_id).exists():
+                                student.course.add(course)
+                                logger.info(f"Associated student with course {course.name}")
+                            else:
+                                logger.info(f"Student already associated with course {course.name}")
+                        except Course.DoesNotExist:
+                            logger.error(f"Course with ID {course_id} not found")
                     
-                    # Handle phone number lookup
-                    phone_number = None
-                    if phone:
-                        try:
-                            phone_number = PhoneNumber.objects.get(phone_number=phone)
-                        except PhoneNumber.DoesNotExist:
-                            logger.info(f"Phone number {phone} not found in PhoneNumber table")
-                    
-                    return (customer.id if customer else None, 
-                        phone_number.id if phone_number else None)
+                    return student.id if student else None
 
-            result = await _process_customer_data()
-            logger.info(f"Customer data processing result: customer_id={result[0]}, phone_number_id={result[1]}")
+            result = await _process_student_data()
+            logger.info(f"Student data processing result: student_id={result}")
             return result
             
         except IntegrityError as e:
-            logger.error(f"Database integrity error handling customer data: {e}")
-            return None, None
+            logger.error(f"Database integrity error handling student data: {e}")
+            return None
         except Exception as e:
-            logger.error(f"Error handling customer data: {e}")
-            return None, None
+            logger.error(f"Error handling student data: {e}")
+            return None
 
     @staticmethod
-    async def save_call_data_to_db(call_id: str, company_id: str, agent_id: str,
-                                 customer_id: str = None, phone_number_id: str = None,
-                                 recording_url: str = None, transcript_content: str = None,
-                                 customer_details: dict = None, call_summary: str = "") -> Optional[DailyCall]:
+    async def save_call_data_to_db(call_id: str, course_id: str, agent_id: str,
+                                student_id: str = None,
+                                transcript_content: str = None,
+                                student_details: dict = None, 
+                                call_summary: str = "") -> Optional[DailyCall]:
         """
         Save call data to the database
         """
@@ -553,19 +394,14 @@ class AgentCallProcessor:
                 call_id = hashlib.sha256(call_id.encode()).hexdigest()[:255]
 
             defaults = {
-                'company_id': company_id,
+                'course_id': course_id,
                 'agent_id': agent_id,
-                'recording_url': recording_url or '',
                 'transcription': transcript_content or '',
                 'call_summary': call_summary or '',
-                'needs_staff_followup': False,
-                'staff_message': customer_details
             }
             
-            if customer_id:
-                defaults['customer_id'] = customer_id
-            if phone_number_id:
-                defaults['phone_number_id'] = phone_number_id
+            if student_id:
+                defaults['student_id'] = student_id
             
             # Get or create the record
             daily_call, created = await DailyCall.objects.aget_or_create(
@@ -575,16 +411,10 @@ class AgentCallProcessor:
 
             if not created:
                 updates = {}
-                if recording_url:
-                    updates['recording_url'] = recording_url
                 if transcript_content:
                     updates['transcription'] = transcript_content
-                if customer_id:
-                    updates['customer_id'] = customer_id
-                if phone_number_id:
-                    updates['phone_number_id'] = phone_number_id
-                if customer_details:
-                    updates['staff_message'] = customer_details
+                if student_id:
+                    updates['student_id'] = student_id
                 if call_summary:
                     updates['call_summary'] = call_summary
                 
@@ -610,7 +440,7 @@ class AgentCallProcessor:
         prompt = (
             f"Summarize the following call transcript in 2-3 sentences. "
             f"Summarize in this format in the first person: "
-            f"`Hi there, this is {agent_name}. A caller needs assistance with ... I will connect you to the caller now.`\n"
+            f"`Hi there, this is {agent_name}. A student called for assistance with ... I will connect you to the student now.`\n"
             f"Transcript:\n"
             f"{transcript_content}"
         )
@@ -631,23 +461,23 @@ class AgentCallProcessor:
             return response.text
     
     @staticmethod
-    def populate_customer_details(transcript_content: str, agent_name: str = "Agent") -> Customer_details:
+    def populate_student_details(transcript_content: str, agent_name: str = "Agent") -> Student_details:
         """
-        Populate customer details from the transcript using Gemini.
-        Returns a Customer_details object with extracted fields.
+        Populate student details from the transcript using Gemini.
+        Returns a Student_details object with extracted fields.
         """
         if not transcript_content:
-            return Customer_details()
+            return Student_details()
 
         prompt = (
-            "Extract the following customer details from the call transcript:\n"
+            "Extract the following student details from the call transcript:\n"
             "1. Name (if mentioned)\n"
             "2. Phone number (if mentioned)\n"
             "3. Email (if mentioned)\n"
             "4. Interest level (e.g., high, medium, low)\n"
             "5. Timeline (e.g., immediate, 1-3 months, etc.)\n"
             "6. Notes (any additional context)\n\n"
-            "Return the details in JSON format with keys: name, phone, email, interest_level, timeline, notes.\n\n"
+            "Return the details in JSON format with keys: name, phone_number, email, interest_level, timeline, notes.\n\n"
             f"Note: The agent's name is similar to human name, so don't use the same name under the name field. "
             "Also don't hallucinate and get random details - if you don't find anything, just leave them as null.\n\n"
             "Transcript:\n"
@@ -660,10 +490,10 @@ class AgentCallProcessor:
                 contents=[prompt],
                 config={
                     "response_mime_type": "application/json",
-                    "response_schema": Customer_details,
+                    "response_schema": Student_details,
                 },
             )
-            return Customer_details(**json.loads(response.text))
+            return Student_details(**json.loads(response.text))
         except Exception as e:
-            logger.error(f"Error extracting customer details from transcript: {e}")
-            return Customer_details()
+            logger.error(f"Error extracting student details from transcript: {e}")
+            return Student_details()

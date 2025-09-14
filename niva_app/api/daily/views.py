@@ -1,17 +1,3 @@
-"""
-Classes: 
-● DailyWebhookView: Handles Daily.co webhooks for events like room creation, 
-participant joining/leaving, recording start/stop 
-● DailyCallRecordingView: Retrieves recording information for Daily calls 
-● DailyRoomAPIView: Creates Daily.co rooms 
-● CreateAndSaveRoomAPIView: Creates a Daily.co room and saves to database 
-
-URL Routes (nhapp/urls.py - daily_routes): 
-● /api/v1/daily/webhooks/daily: Webhook endpoint for Daily.co events 
-● /api/v1/daily/calls/<uuid:daily_call_id>/recording/: Get recording for a call 
-● /api/v1/daily/rooms/: Create a new Daily.co room 
-● /api/v1/daily/rooms/create-and-save/: Create and save a room to database 
-"""
 import json
 import logging
 import asyncio
@@ -29,11 +15,9 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 
-from custard_app.models.dailycalls import DailyCall
-from custard_app.models.company import Company
-from custard_app.models.customer import Customer
-from custard_app.models.phonenumber import PhoneNumber
-from custard_app.services.daily_service import DailyService
+from niva_app.models.dailycalls import DailyCall
+from niva_app.models.course import Course
+from niva_app.services.daily_service import DailyService
 
 logger = logging.getLogger(__name__)
 
@@ -130,9 +114,8 @@ class DailyWebhookView(View):
             # Find the daily call by room name and update recording URL
             daily_call = DailyCall.objects.filter(daily_room_name=room_name).first()
             if daily_call and download_url:
-                daily_call.recording_url = download_url
-                daily_call.save()
-                logger.info(f"Recording URL updated for call {daily_call.call_sid}")
+                # Note: You may need to add a recording_url field if needed
+                logger.info(f"Recording available for call {daily_call.call_sid}: {download_url}")
         except Exception as e:
             logger.error(f"Error updating recording URL: {str(e)}")
 
@@ -161,7 +144,7 @@ class DailyCallRecordingView(APIView):
             
             # Get recording information from Daily.co API
             recording_data = None
-            if daily_call.daily_room_name:
+            if hasattr(daily_call, 'daily_room_name') and daily_call.daily_room_name:
                 recording_data = await daily_service.get_recording_by_room_name(
                     daily_call.daily_room_name
                 )
@@ -172,9 +155,11 @@ class DailyCallRecordingView(APIView):
             response_data = {
                 'call_id': str(daily_call_id),
                 'call_sid': daily_call.call_sid,
-                'room_name': daily_call.daily_room_name,
-                'recording_url': daily_call.recording_url,
-                'recording_data': recording_data
+                'recording_data': recording_data,
+                'course_id': str(daily_call.course.id) if daily_call.course else None,
+                'course_name': daily_call.course.name if daily_call.course else None,
+                'student_id': str(daily_call.student.id) if daily_call.student else None,
+                'student_name': f"{daily_call.student.first_name} {daily_call.student.last_name}" if daily_call.student else None
             }
             
             return Response(response_data, status=status.HTTP_200_OK)
@@ -251,7 +236,7 @@ class DailyRoomAPIView(APIView):
 
 class CreateAndSaveRoomAPIView(APIView):
     """
-    Creates a Daily.co room and saves to database
+    Creates a Daily.co room and saves to database with course association
     """
     
     def post(self, request):
@@ -267,37 +252,36 @@ class CreateAndSaveRoomAPIView(APIView):
         try:
             data = request.data
             
-            # Extract required parameters
+            # Extract required parameters - using course_id instead of course_id
             caller_phone_number = data.get('caller_phone_number')
-            company_id = data.get('company_id')
-            phone_number_id = data.get('phone_number_id')
+            course_id = data.get('course_id')
+            agent_id = data.get('agent_id')
             call_sid = data.get('call_sid')
             
-            # Validate required fields - removed customer_id since it's created automatically
-            if not all([caller_phone_number, company_id, phone_number_id, call_sid]):
+            # Validate required fields
+            if not all([caller_phone_number, course_id, agent_id, call_sid]):
                 return Response(
-                    {'error': 'Missing required fields: caller_phone_number, company_id, phone_number_id, call_sid'}, 
+                    {'error': 'Missing required fields: caller_phone_number, course_id, agent_id, call_sid'}, 
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
             # Validate foreign key relationships using sync_to_async
             try:
-                company = await sync_to_async(Company.objects.get)(id=company_id)
-                phone_number = await sync_to_async(PhoneNumber.objects.get)(id=phone_number_id)
-            except (Company.DoesNotExist, PhoneNumber.DoesNotExist) as e:
+                course = await sync_to_async(Course.objects.get)(id=course_id)
+            except Course.DoesNotExist as e:
                 return Response(
-                    {'error': f'Invalid reference: {str(e)}'}, 
+                    {'error': f'Invalid course reference: {str(e)}'}, 
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
             # Initialize Daily service
             daily_service = DailyService()
             
-            # Create room and save to database - this now handles everything
+            # Create room and save to database - updated to use course_id instead of course_id
             room_and_call_details = await daily_service.create_and_save_room(
                 caller_phone_number=caller_phone_number,
-                company_id=company_id,
-                twilio_phone_number_id=phone_number_id,
+                course_id=course_id,
+                agent_id=agent_id,
                 call_sid=call_sid,
                 user=request.user
             )
@@ -311,7 +295,9 @@ class CreateAndSaveRoomAPIView(APIView):
                 'message': 'Room created and saved successfully',
                 'daily_call_id': room_and_call_details["call"]["id"],
                 'room': room_and_call_details["room"],
-                'call': room_and_call_details["call"]
+                'call': room_and_call_details["call"],
+                'course_id': str(course_id),
+                'course_name': course.name
             }
             
             return Response(response_data, status=status.HTTP_201_CREATED)

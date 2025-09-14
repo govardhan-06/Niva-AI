@@ -6,69 +6,162 @@ from rest_framework import serializers, status
 from rest_framework.response import Response
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.status import HTTP_200_OK
+from rest_framework.parsers import MultiPartParser, FormParser
 
-from custard_app.models import Memory, Company, Agent, WebsiteSource, Document
-from custard_app.services.agent_memory import MemoryService
-from custard_app.api.common.views import BaseAPI
-from app.config import GCP_BUCKET_URL
+from niva_app.models import Memory, Course, Agent, Document
+from niva_app.services.agent_memory import MemoryService
+from niva_app.api.common.views import BaseAPI
 import threading
 import logging
 
 logger = logging.getLogger(__name__)
 
 class AddMemory(BaseAPI):
+    parser_classes = [MultiPartParser, FormParser]
+    
     class InputSerializer(serializers.Serializer):
         type = serializers.ChoiceField(
             choices=[("document", "document"), ("website", "website")]
         )
-        url = serializers.CharField()
-        name = serializers.CharField(required=True) 
+        url = serializers.CharField(required=False)
+        name = serializers.CharField(required=True)
+        file = serializers.FileField(required=False)
 
     input_serializer_class = InputSerializer
 
     def post(self, request, *args, **kwargs):
         data = self.validate_input_data()
-        company_id = self.kwargs.get("company_id")
-        company = Company.objects.get(id=company_id)
+        course_id = self.kwargs.get("course_id")
+        course = Course.objects.get(id=course_id)
 
-        if company.id != self.get_user().company.id:
-            self.set_response_message("You are not allowed to edit this agent")
+        # Check if user has access to this course
+        if not course.is_active:
+            self.set_response_message("This course is not active")
             return self.get_response_400()
 
-        memory_service = MemoryService(company)
+        memory_service = MemoryService(course)
 
-        memory_service.add_memory(
-            memory_type=data["type"],
-            url=data["url"],
-            name=data["name"] 
-        )
-
-        return Response(
-            status=HTTP_200_OK,
-        )
-
-class MemoryList(BaseAPI):
-    def get(self, request, *args, **kwargs):
-        user = self.get_user()
-        company_id = self.kwargs.get("company_id")
-
-        # Check company access
-        if not user.has_company_access(company_id):
-            return Response(
-                {"detail": "You don't have access to this company"},
-                status=status.HTTP_403_FORBIDDEN
-            )
-
-        memories = Memory.objects.filter(
-            company_id=company_id
-        ).order_by('-created_at')
-
-        paginator = LimitOffsetPagination()
-        paginated_memories = paginator.paginate_queryset(memories, request)
-
-        serializer = MemoryOutputSerializer(paginated_memories, many=True)
+        if data["type"] == "document":
+            # Handle file upload
+            file = data.get("file")
+            if not file:
+                return Response(
+                    {"error": "File is required for document type"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            try:
+                # Upload file to local storage
+                file_path = memory_service.upload_file(file, data["name"])
+                
+                # Add memory with local file path
+                memory_service.add_memory(
+                    memory_type=data["type"],
+                    url=file_path,
+                    name=data["name"] 
+                )
+                
+                return Response(
+                    {
+                        "message": "Document uploaded and processed successfully",
+                        "file_path": file_path
+                    },
+                    status=HTTP_200_OK,
+                )
+                
+            except Exception as e:
+                logger.error(f"Error processing file upload: {e}")
+                return Response(
+                    {"error": f"Failed to process file: {str(e)}"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
         
-        return paginator.get_paginated_response(serializer.data)
+        elif data["type"] == "website":
+            # Handle website URL
+            url = data.get("url")
+            if not url:
+                return Response(
+                    {"error": "URL is required for website type"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            try:
+                memory_service.add_memory(
+                    memory_type=data["type"],
+                    url=url,
+                    name=data["name"] 
+                )
+                
+                return Response(
+                    {"message": "Website memory added successfully"},
+                    status=HTTP_200_OK,
+                )
+                
+            except Exception as e:
+                logger.error(f"Error adding website memory: {e}")
+                return Response(
+                    {"error": f"Failed to add website memory: {str(e)}"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        # Fallback return (should not reach here)
+        return Response(
+            {"error": "Invalid memory type"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+class UploadDocument(BaseAPI):
+    """
+    Separate endpoint for document uploads
+    """
+    parser_classes = [MultiPartParser, FormParser]
+    
+    class InputSerializer(serializers.Serializer):
+        file = serializers.FileField()
+        name = serializers.CharField()
+    
+    input_serializer_class = InputSerializer
+    
+    def post(self, request, *args, **kwargs):
+        data = self.validate_input_data()
+        course_id = self.kwargs.get("course_id")
+        course = Course.objects.get(id=course_id)
+
+        if not course.is_active:
+            self.set_response_message("This course is not active")
+            return self.get_response_400()
+
+        memory_service = MemoryService(course)
+        
+        try:
+            file = data["file"]
+            name = data["name"]
+            
+            # Upload file to local storage
+            file_path = memory_service.upload_file(file, name)
+            
+            # Add memory with local file path
+            memory_service.add_memory(
+                memory_type="document",
+                url=file_path,
+                name=name
+            )
+            
+            return Response(
+                {
+                    "message": "Document uploaded and processed successfully",
+                    "file_path": file_path,
+                    "name": name
+                },
+                status=HTTP_200_OK,
+            )
+            
+        except Exception as e:
+            logger.error(f"Error uploading document: {e}")
+            return Response(
+                {"error": f"Failed to upload document: {str(e)}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
 class MemoryDelete(BaseAPI):
     def delete(self, request, *args, **kwargs):
@@ -77,12 +170,9 @@ class MemoryDelete(BaseAPI):
 
         memory = get_object_or_404(Memory, id=memory_id)
 
-        # Check company access
-        if not user.has_company_access(memory.company_id):
-            return Response(
-                {"detail": "You don't have access to this memory"},
-                status=status.HTTP_403_FORBIDDEN
-            )
+        # Check course access (implement course access logic as needed)
+        # For now, allowing any authenticated user to delete
+        # You may want to add course-specific permissions here
 
         memory.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -95,9 +185,10 @@ class MemoryContent(BaseAPI):
         # Get memory and check access
         memory = get_object_or_404(Memory, id=memory_id)
         
-        if not user.has_company_access(memory.company_id):
+        # Check if course is active (you may add more specific access control)
+        if not memory.course.is_active:
             return Response(
-                {"detail": "You don't have access to this memory"},
+                {"detail": "This course is not active"},
                 status=status.HTTP_403_FORBIDDEN
             )
         
@@ -112,20 +203,6 @@ class MemoryContent(BaseAPI):
                     "created_at": doc.created_at
                 }
                 for idx, doc in enumerate(documents)
-            ]
-        elif memory.type == "website":
-            # Get website content chunks
-            website_sources = WebsiteSource.objects.filter(
-                company=memory.company,
-                url=memory.url
-            ).order_by('created_at')
-            content_data = [
-                {
-                    "content": source.contents,
-                    "chunk_index": idx,
-                    "created_at": source.created_at
-                }
-                for idx, source in enumerate(website_sources)
             ]
         else:
             content_data = []
@@ -144,9 +221,10 @@ class MemorySummary(BaseAPI):
         # Get memory and check access
         memory = get_object_or_404(Memory, id=memory_id)
         
-        if not user.has_company_access(memory.company_id):
+        # Check if course is active
+        if not memory.course.is_active:
             return Response(
-                {"detail": "You don't have access to this memory"},
+                {"detail": "This course is not active"},
                 status=status.HTTP_403_FORBIDDEN
             )
         
@@ -161,26 +239,6 @@ class MemorySummary(BaseAPI):
             first_document = Document.objects.filter(memory=memory).first()
             preview = first_document.content[:500] + "..." if first_document and len(first_document.content) > 500 else (first_document.content if first_document else "")
             
-        elif memory.type == "website":
-            document_count = WebsiteSource.objects.filter(
-                company=memory.company,
-                url=memory.url
-            ).count()
-            
-            total_content_length = WebsiteSource.objects.filter(
-                company=memory.company,
-                url=memory.url
-            ).aggregate(
-                total_length=Sum(Length('contents'))
-            )['total_length'] or 0
-            
-            # Get a preview of the first chunk
-            first_source = WebsiteSource.objects.filter(
-                company=memory.company,
-                url=memory.url
-            ).first()
-            preview = first_source.contents[:500] + "..." if first_source and len(first_source.contents) > 500 else (first_source.contents if first_source else "")
-            
         else:
             document_count = 0
             total_content_length = 0
@@ -191,6 +249,8 @@ class MemorySummary(BaseAPI):
             "name": memory.name,
             "type": memory.type,
             "url": memory.url,
+            "course_id": memory.course.id,
+            "course_name": memory.course.name,
             "chunk_count": document_count,
             "total_content_length": total_content_length,
             "preview": preview,
@@ -207,12 +267,16 @@ class MemoryContentSerializer(serializers.Serializer):
 
 class MemoryOutputSerializer(serializers.ModelSerializer):
     file_url = serializers.SerializerMethodField()
+    course_name = serializers.CharField(source='course.name', read_only=True)
 
     class Meta:
         model = Memory
-        fields = ["id", "name", "file_url", "type", "url", "created_at"]
+        fields = ["id", "name", "file_url", "type", "url", "course_name", "created_at"]
 
     def get_file_url(self, obj):
         if obj.type == "document":
-            return GCP_BUCKET_URL + "/" + obj.url
+            # Return local file URL
+            from niva_app.services.local_storage import LocalStorageService
+            storage_service = LocalStorageService()
+            return storage_service.get_file_url(obj.url)
         return obj.url

@@ -24,38 +24,24 @@ from pipecat.processors.audio.audio_buffer_processor import AudioBufferProcessor
 from pipecat_flows import FlowManager, ContextStrategy, ContextStrategyConfig
 
 from pipecat_agents.services.pipecat_agent_service import AgentServiceRegistry, AgentService
-from custard_app.services.twilio import TwilioService
-from custard_app.models.agents import Agent
+from niva_app.models.agents import Agent
 from django.core.exceptions import ObjectDoesNotExist
-from pipecat_agents.services.outbound_flow_service import get_sales_flow_config
 from pipecat_agents.services.inbound_flow_service import get_inbound_flow_config
 from pipecat_agents.services.agent_llm_service import (
-    get_agent_context,
     get_inbound_agent_context,
-    outbound_handlers_register,
     inbound_handlers_register,
     configure_language_services
 )
-from pipecat_agents.services.agent_multimodal_service import (
-    get_agent_multimodal_context,
-    get_inbound_agent_multimodal_context,
-    configure_gemini__multimodal_service
-)
 
 logger = logging.getLogger(__name__)
-
-twilio_client = TwilioService()
 
 class PipecatAgentRunner:
     """
     Core runner for managing conversation flow.
     """ 
-    def __init__(self, agent_type="outbound"):
+    def __init__(self):
         self.registry = AgentServiceRegistry()
-        if agent_type == "inbound":
-            self.flow_config = get_inbound_flow_config()
-        else:
-            self.flow_config = get_sales_flow_config()
+        self.flow_config = get_inbound_flow_config()
         self.transcript = TranscriptProcessor()
         
         # Chunked recording configuration
@@ -75,7 +61,7 @@ class PipecatAgentRunner:
         self.chunk_counter = 0  # Counter for chunk numbering
         self.temp_transcript_file = None
         self.final_audio_file = None  # Final merged audio file
-        self.custard_app_url = config.CUSTARD_APP_URL
+        self.niva_app_url = config.NIVA_APP_URL
     
     async def save_transcript_to_file(self, session_id: str):
         """Save conversation transcript to a temporary file and return the content"""
@@ -242,11 +228,11 @@ class PipecatAgentRunner:
         except Exception as e:
             logger.error(f"Error cleaning up temporary files: {e}")
 
-    async def send_post_call_data(self, call_id: str, session_id: str, company_id: str, 
+    async def send_post_call_data(self, call_id: str, session_id: str, course_id: str, 
                                 agent_id: str, transcript_content: str = None, 
                                 recording_file_data: bytes = None, customer_details: dict = None, caller_number: str = None):
         """
-        Send post-call data to custard_app for processing
+        Send post-call data to niva_app for processing
         """
         try:
             logger.info(f"Preparing to send post-call data for call {call_id}")
@@ -255,7 +241,7 @@ class PipecatAgentRunner:
             payload = {
                 "call_id": call_id,
                 "session_id": session_id,
-                "company_id": company_id,
+                "course_id": course_id,
                 "caller_number": caller_number,
                 "agent_id": agent_id,
                 "transcript_content": transcript_content,
@@ -282,8 +268,8 @@ class PipecatAgentRunner:
                           for k, v in payload.items()}
             logger.info(f"Payload prepared: {payload_info}")
             
-            # Send to custard_app
-            url = f"{self.custard_app_url}/process-post-call-data/"
+            # Send to niva_app
+            url = f"{self.niva_app_url}process-post-call-data/"
             timeout = aiohttp.ClientTimeout(total=60)  # Increased timeout for large files
             
             logger.info(f"Sending POST request to: {url}")
@@ -325,10 +311,10 @@ class PipecatAgentRunner:
             }
 
     async def handle_post_call_operations(self, room_url: str, token: str, call_id: str, 
-                                        sip_uri: str, session_id: str, company_id: str = None, 
+                                        sip_uri: str, session_id: str, course_id: str = None, 
                                         agent_id: str = None, caller_number: str = None):
         """
-        Simplified post-call operations - collect data and send to custard_app
+        Simplified post-call operations - collect data and send to niva_app
         """
         logger.info(f"Starting post-call operations for session {session_id}")
         
@@ -363,12 +349,12 @@ class PipecatAgentRunner:
             else:
                 logger.warning("No audio chunks found to merge")
             
-            # Send all data to custard_app for processing
-            logger.info("Sending post-call data to custard_app...")
+            # Send all data to niva_app for processing
+            logger.info("Sending post-call data to niva_app...")
             result = await self.send_post_call_data(
                 call_id=call_id,
                 session_id=session_id,
-                company_id=company_id,
+                course_id=course_id,
                 agent_id=agent_id,
                 transcript_content=transcript_content,
                 recording_file_data=recording_file_data,
@@ -377,10 +363,10 @@ class PipecatAgentRunner:
             )
             
             if result and result.get("success"):
-                logger.info("Post-call data successfully sent to custard_app")
+                logger.info("Post-call data successfully sent to niva_app")
                 logger.info(f"Result: {result}")
             else:
-                logger.error("Failed to send post-call data to custard_app")
+                logger.error("Failed to send post-call data to niva_app")
                 if result:
                     logger.error(f"Error details: {result}")
             
@@ -392,404 +378,16 @@ class PipecatAgentRunner:
         except Exception as e:
             logger.error(f"Error in post-call operations: {e}", exc_info=True)
             await self.cleanup_temp_files()
-
-    async def run_outbound_agent(self, room_url: str, token: str, call_id: str, 
-                                sip_uri: str, session_id: str, company_id: str, agent_id: str, caller_number: str):
-        """
-        Entry point for voice conversations with flow management.
-        Routes to multimodal or LLM agent based on agent language and model.
-        """
-        try:
-            agent = await Agent.objects.aget(id=agent_id)
-            if agent.language in ['ml', 'ta']:
-                # Route to multimodal agent if language is Malayalam or Tamil
-                await self.run_outbound_agent_multimodal(
-                    room_url, token, call_id, sip_uri, session_id, company_id, agent_id, caller_number
-                )
-            else:
-                # Default to LLM agent for other languages
-                await self.run_outbound_agent_llm(
-                    room_url, token, call_id, sip_uri, session_id, company_id, agent_id, caller_number
-                )
-        except ObjectDoesNotExist:
-            logger.error(f"Agent with ID {agent_id} not found")
-            raise
-        except Exception as e:
-            logger.error(f"Error in run_outbound_agent: {e}")
-            raise
-
-    async def run_outbound_agent_llm(self, room_url: str, token: str, call_id: str, 
-                                sip_uri: str, session_id: str, company_id: str, agent_id: str, caller_number: str):
-        """
-        Entry point for voice conversations with flow management for agent_llm.
-        """
-        logger.info(f"Starting outbound agent for session: {session_id}, company: {company_id}, agent: {agent_id}")
-        
-        self.session_start_time = datetime.datetime.now()
-
-        try:
-            agent_system_instruction = await get_agent_context(company_id, agent_id)
-        except Exception as e:
-            logger.error(f"Failed to load agent context, using fallback: {e}")
-            agent_system_instruction = """
-                You are a professional sales representative.
-                Your responses will be read aloud, so keep them natural and conversational.
-                Be helpful, patient, and provide excellent service.
-            """.strip()
-
-        # Setup the Daily transport
-        transport = DailyTransport(
-            room_url,
-            token,
-            "Custard Bot",
-            DailyParams(
-                api_url=os.getenv("DAILY_API_KEY", ""),
-                api_key=os.getenv("DAILY_API_URL", "https://api.daily.co/v1"),
-                audio_in_enabled=True,
-                audio_out_enabled=True,
-                video_out_enabled=False,
-                transcription_enabled=False, 
-                vad_analyzer=SileroVADAnalyzer(),
-            ),
-        )
-
-        stt, tts= await configure_language_services(agent_id)
-
-        llm = GoogleLLMService(
-            api_key=config.GOOGLE_GEMINI_API_KEY,
-            model="gemini-2.5-flash",
-            system_instruction=agent_system_instruction,
-            params=GoogleLLMService.InputParams(
-                temperature=1.0, 
-            )
-        )
-
-        # Setup the conversational context
-        context = OpenAILLMContext()
-        context_aggregator = llm.create_context_aggregator(context)
-
-        # Build the pipeline
-        pipeline = Pipeline(
-            [
-                transport.input(),
-                stt, 
-                self.transcript.user(),
-                context_aggregator.user(),
-                llm,  
-                tts,
-                transport.output(),
-                self.audiobuffer,
-                self.transcript.assistant(),
-                context_aggregator.assistant(),
-            ]
-        )
-
-        # Create the pipeline task
-        task = PipelineTask(
-            pipeline,
-            params=PipelineParams(
-                allow_interruptions=True,
-            )
-        )
-
-        context_strategy = ContextStrategyConfig(
-            strategy=ContextStrategy.APPEND,
-        )
-
-        # Initialize the flow manager with the task and context aggregator
-        self.flow_manager = FlowManager(
-            task=task,
-            llm=llm,
-            context_aggregator=context_aggregator,
-            context_strategy=context_strategy,
-            flow_config=self.flow_config,
-        )
-
-        # Register all function handlers after flow manager creation
-        outbound_handlers_register(llm)
-
-        agent_service = AgentService(
-            transport=transport,
-            pipeline=pipeline,
-            task=task,
-            context={"room_url": room_url, "token": token}
-        )
-        self.registry.register(session_id, agent_service)
-
-        #Monitor these events for OUTBOUND cases
-        @transport.event_handler("on_first_participant_joined")
-        async def on_first_participant_joined(transport, participant):
-            logger.info(f"First participant joined: {participant['id']}")
-            await self.audiobuffer.start_recording()
-            await self.flow_manager.initialize()
-            logger.info("Sales flow initialized - starting with rapport building")
-        
-        @transport.event_handler("on_participant_left")
-        async def on_participant_left(transport, participant, reason):
-            logger.info(f"Participant left: {participant['id']}, reason: {reason}")
-            
-            try:
-                # Stop recording first
-                await self.audiobuffer.stop_recording()
-                
-                # Execute post-call operations
-                await self.handle_post_call_operations(
-                    room_url=room_url, 
-                    token=token, 
-                    call_id=call_id, 
-                    sip_uri=sip_uri, 
-                    session_id=session_id,
-                    company_id=company_id,
-                    agent_id=agent_id,
-                    caller_number=caller_number
-                )
-
-            except Exception as e:
-                logger.error(f"Error in post-call operations: {e}")
-            
-            finally:
-                # Always attempt graceful shutdown first
-                try:
-                    if not task.has_finished():
-                        await task.stop_when_done()
-                except Exception as e:
-                    logger.error(f"Error in graceful shutdown: {e}")
-                    # Only use immediate cancellation as last resort
-                    try:
-                        await task.cancel()
-                    except Exception as cancel_error:
-                        logger.error(f"Error in task cancellation: {cancel_error}")
-                
-                # Clean up registry only once
-                try:
-                    self.registry.remove(session_id)
-                except Exception as e:
-                    logger.error(f"Error removing from registry: {e}")
-        
-        @self.transcript.event_handler("on_transcript_update")
-        async def handle_transcript_update(processor, frame):
-            # Each message contains role (user/assistant), content, and timestamp
-            for message in frame.messages:
-                message_data = {
-                    "timestamp": message.timestamp,
-                    "role": message.role,
-                    "content": message.content
-                }
-                
-                self.conversation_history.append(message_data)
-                print(f"[{message.timestamp}] {message.role}: {message.content}")
-        
-               
-        @self.audiobuffer.event_handler("on_audio_data")
-        async def on_audio_data(buffer, audio, sample_rate, num_channels):
-            logger.info(f"Received audio data: {len(audio)} bytes, {sample_rate}Hz, {num_channels} channels")
-            
-            # Remove the audio_saved check to allow multiple chunks
-            if len(audio) == 0:
-                return
-                
-            await self.save_audio_chunk(audio, sample_rate, num_channels, session_id)
-        
-        # @transport.event_handler("on_dialin_ready")
-        # async def on_dialin_ready(transport, cdata):
-        #     # The bot uses Twilio's REST API to modify the ongoing call
-        #     twilio_client.calls(call_id).update(
-        #         twiml=f"<Response><Dial timeout=\"30\"><Sip>{sip_uri}</Sip></Dial></Response>"
-        #     )
-
-        #Twilio webhook
-        # <Response>
-        # <Play url="https://your-hold-music.mp3" loop="10"/>
-        # </Response>
-
-        try:
-            # Run the pipeline
-            runner = PipelineRunner(handle_sigint=False)
-            await runner.run(task)
-        
-        finally:
-            self.registry.remove(session_id)
-    
-    async def run_outbound_agent_multimodal(self, room_url: str, token: str, call_id: str, 
-                                sip_uri: str, session_id: str, company_id: str, agent_id: str, caller_number: str):
-        """
-        Entry point for voice conversations with flow management for agent_multimodal.
-        """
-        logger.info(f"Starting outbound agent for session: {session_id}, company: {company_id}, agent: {agent_id}")
-        
-        self.session_start_time = datetime.datetime.now()
-
-        try:
-            agent_system_instruction = await get_agent_multimodal_context(company_id, agent_id)
-        except Exception as e:
-            logger.error(f"Failed to load agent context, using fallback: {e}")
-            agent_system_instruction = """
-                You are a professional sales representative.
-                Your responses will be read aloud, so keep them natural and conversational.
-                Be helpful, patient, and provide excellent service.
-            """.strip()
-
-        # Setup the Daily transport
-        transport = DailyTransport(
-            room_url,
-            token,
-            "Custard Bot",
-            DailyParams(
-                api_url=os.getenv("DAILY_API_KEY", ""),
-                api_key=os.getenv("DAILY_API_URL", "https://api.daily.co/v1"),
-                audio_in_enabled=True,
-                audio_out_enabled=True,
-                video_out_enabled=False,
-                transcription_enabled=False, 
-                vad_analyzer=SileroVADAnalyzer(),
-            ),
-        )
-
-        llm = await configure_gemini__multimodal_service(agent_id, agent_system_instruction,agent_type="outbound")
-
-        # Setup the conversational context
-        context = OpenAILLMContext()
-        context_aggregator = llm.create_context_aggregator(context)
-
-        pipeline = Pipeline([
-            transport.input(),                   
-            context_aggregator.user(),        
-            llm,                               # Speech-to-Speech
-            transport.output(),              
-            self.audiobuffer,                   
-            self.transcript.user(),             
-            self.transcript.assistant(),       
-            context_aggregator.assistant(),      
-        ])
-
-        # Create the pipeline task
-        task = PipelineTask(
-            pipeline,
-            params=PipelineParams(
-                allow_interruptions=True,
-            )
-        )
-
-        # Context strategy for flow management
-        context_strategy = ContextStrategyConfig(
-            strategy=ContextStrategy.APPEND,
-        )
-
-        #NOTE: Pipecat flows is not supported by GeminiMulitmodalLLMServices
-        # Initialize the flow manager with the task and context aggregator
-        # self.flow_manager = FlowManager(
-        #     task=task,
-        #     llm=llm,
-        #     context_aggregator=context_aggregator,
-        #     context_strategy=context_strategy,
-        #     flow_config=self.flow_config,
-        # )
-
-        agent_service = AgentService(
-            transport=transport,
-            pipeline=pipeline,
-            task=task,
-            context={"room_url": room_url, "token": token}
-        )
-        self.registry.register(session_id, agent_service)
-
-        #Monitor these events for OUTBOUND cases
-        @transport.event_handler("on_first_participant_joined")
-        async def on_first_participant_joined(transport, participant):
-            logger.info(f"First participant joined: {participant['id']}")
-            await self.audiobuffer.start_recording()
-        
-        @transport.event_handler("on_participant_left")
-        async def on_participant_left(transport, participant, reason):
-            logger.info(f"Participant left: {participant['id']}, reason: {reason}")
-            
-            try:
-                # Stop recording first
-                await self.audiobuffer.stop_recording()
-                
-                # Execute post-call operations
-                await self.handle_post_call_operations(
-                    room_url=room_url, 
-                    token=token, 
-                    call_id=call_id, 
-                    sip_uri=sip_uri, 
-                    session_id=session_id,
-                    company_id=company_id,
-                    agent_id=agent_id,
-                    caller_number=caller_number
-                )
-
-            except Exception as e:
-                logger.error(f"Error in post-call operations: {e}")
-            
-            finally:
-                # Always attempt graceful shutdown first
-                try:
-                    if not task.has_finished():
-                        await task.stop_when_done()
-                except Exception as e:
-                    logger.error(f"Error in graceful shutdown: {e}")
-                    # Only use immediate cancellation as last resort
-                    try:
-                        await task.cancel()
-                    except Exception as cancel_error:
-                        logger.error(f"Error in task cancellation: {cancel_error}")
-                
-                # Clean up registry only once
-                try:
-                    self.registry.remove(session_id)
-                except Exception as e:
-                    logger.error(f"Error removing from registry: {e}")
-        
-        @self.transcript.event_handler("on_transcript_update")
-        async def handle_transcript_update(processor, frame):
-            # Each message contains role (user/assistant), content, and timestamp
-            for message in frame.messages:
-                message_data = {
-                    "timestamp": message.timestamp,
-                    "role": message.role,
-                    "content": message.content
-                }
-                
-                self.conversation_history.append(message_data)
-                print(f"[{message.timestamp}] {message.role}: {message.content}")
-        
-               
-        @self.audiobuffer.event_handler("on_audio_data")
-        async def on_audio_data(buffer, audio, sample_rate, num_channels):
-            logger.info(f"Received audio data: {len(audio)} bytes, {sample_rate}Hz, {num_channels} channels")
-            
-            # Remove the audio_saved check to allow multiple chunks
-            if len(audio) == 0:
-                return
-                
-            await self.save_audio_chunk(audio, sample_rate, num_channels, session_id)
-
-        try:
-            # Run the pipeline
-            runner = PipelineRunner(handle_sigint=False)
-            await runner.run(task)
-        
-        finally:
-            self.registry.remove(session_id)
     
     async def run_inbound_agent(self, room_url: str, token: str, call_id: str, 
-                            sip_uri: str, session_id: str, company_id: str, agent_id: str, caller_number: str = None):
+                            sip_uri: str, session_id: str, course_id: str, agent_id: str, caller_number: str = None):
         """
         Entry point for voice conversations with flow management.
-        Routes to multimodal or LLM agent based on agent language and model.
+        Routes to LLM agent based on agent language and model.
         """
         try:
-            agent = await Agent.objects.aget(id=agent_id)
-            if agent.language in ['ml', 'ta']:
-                # Route to multimodal agent if language is Malayalam or Tamil
-                await self.run_inbound_agent_multimodal(
-                    room_url, token, call_id, sip_uri, session_id, company_id, agent_id, caller_number
-                )
-            else:
-                # Default to LLM agent for other languages
-                await self.run_inbound_agent_llm(
-                    room_url, token, call_id, sip_uri, session_id, company_id, agent_id, caller_number
+            await self.run_inbound_agent_llm(
+                    room_url, token, call_id, sip_uri, session_id, course_id, agent_id, caller_number
                 )
         except ObjectDoesNotExist:
             logger.error(f"Agent with ID {agent_id} not found")
@@ -799,18 +397,18 @@ class PipecatAgentRunner:
             raise
     
     async def run_inbound_agent_llm(self, room_url: str, token: str, call_id: str, 
-                            sip_uri: str, session_id: str, company_id: str, agent_id: str, caller_number: str = None):
+                            sip_uri: str, session_id: str, course_id: str, agent_id: str, caller_number: str = None):
         """
         Entry point for inbound voice conversations with flow management for agent_llm.
         """
-        logger.info(f"Starting inbound agent for session: {session_id}, company: {company_id}, agent: {agent_id}")
+        logger.info(f"Starting inbound agent for session: {session_id}, course: {course_id}, agent: {agent_id}")
         
         call_already_forwarded = False
         
         self.session_start_time = datetime.datetime.now()
 
         try:
-            agent_system_instruction = await get_inbound_agent_context(company_id, agent_id)
+            agent_system_instruction = await get_inbound_agent_context(course_id, agent_id)
         except Exception as e:
             logger.error(f"Failed to load inbound agent context, using fallback: {e}")
             agent_system_instruction = """
@@ -823,7 +421,7 @@ class PipecatAgentRunner:
         transport = DailyTransport(
             room_url,
             token,
-            "Customer Service Bot",
+            "NIVA AI",
             DailyParams(
                 api_url=os.getenv("DAILY_API_KEY", ""),
                 api_key=os.getenv("DAILY_API_URL", "https://api.daily.co/v1"),
@@ -921,7 +519,7 @@ class PipecatAgentRunner:
                     call_id=call_id, 
                     sip_uri=sip_uri, 
                     session_id=session_id,
-                    company_id=company_id,
+                    course_id=course_id,
                     agent_id=agent_id,
                     caller_number=caller_number
                 )
@@ -961,211 +559,6 @@ class PipecatAgentRunner:
                 self.conversation_history.append(message_data)
                 print(f"[{message.timestamp}] {message.role}: {message.content}")
         
-        @self.audiobuffer.event_handler("on_audio_data")
-        async def on_audio_data(buffer, audio, sample_rate, num_channels):
-            logger.info(f"Received audio data: {len(audio)} bytes, {sample_rate}Hz, {num_channels} channels")
-            
-            # Remove the audio_saved check to allow multiple chunks
-            if len(audio) == 0:
-                return
-                
-            await self.save_audio_chunk(audio, sample_rate, num_channels, session_id)
-        
-        # Handle call ready to forward
-        @transport.event_handler("on_dialin_ready")
-        async def on_dialin_ready(transport, cdata):
-            nonlocal call_already_forwarded
-
-            # We only want to forward the call once
-            # The on_dialin_ready event will be triggered for each sip endpoint provisioned
-            if call_already_forwarded:
-                logger.warning("Call already forwarded, ignoring this event.")
-                return
-
-            logger.info(f"Forwarding call {call_sid} to {sip_uri}")
-
-            try:
-                # Update the Twilio call with TwiML to forward to the Daily SIP endpoint
-                twiml=f"<Response><Dial><Sip>{sip_uri}</Sip></Dial></Response>"
-                twilio_client.update_call_twiml(call_sid=call_sid, twiml=twiml)
-                logger.info("Call forwarded successfully")
-                call_already_forwarded = True
-            except Exception as e:
-                logger.error(f"Failed to forward call: {str(e)}")
-                raise
-
-        @transport.event_handler("on_dialin_connected")
-        async def on_dialin_connected(transport, data):
-            logger.debug(f"Dial-in connected: {data}")
-
-        @transport.event_handler("on_dialin_stopped")
-        async def on_dialin_stopped(transport, data):
-            logger.debug(f"Dial-in stopped: {data}")
-
-        @transport.event_handler("on_dialin_error")
-        async def on_dialin_error(transport, data):
-            logger.error(f"Dial-in error: {data}")
-            # If there is an error, the bot should leave the call
-            # This may be also handled in on_participant_left with
-            # await task.cancel()
-
-        @transport.event_handler("on_dialin_warning")
-        async def on_dialin_warning(transport, data):
-            logger.warning(f"Dial-in warning: {data}")
-
-        try:
-            # Run the pipeline
-            runner = PipelineRunner(handle_sigint=False)
-            await runner.run(task)
-        
-        finally:
-            self.registry.remove(session_id)
-    
-    async def run_inbound_agent_multimodal(self, room_url: str, token: str, call_id: str, 
-                                sip_uri: str, session_id: str, company_id: str, agent_id: str, caller_number: str):
-        """
-        Entry point for voice conversations with flow management for agent_multimodal.
-        """
-        logger.info(f"Starting inbound agent for session: {session_id}, company: {company_id}, agent: {agent_id}")
-        
-        self.session_start_time = datetime.datetime.now()
-
-        try:
-            agent_system_instruction = await get_inbound_agent_multimodal_context(company_id, agent_id)
-        except Exception as e:
-            logger.error(f"Failed to load agent context, using fallback: {e}")
-            agent_system_instruction = """
-                You are a professional sales representative.
-                Your responses will be read aloud, so keep them natural and conversational.
-                Be helpful, patient, and provide excellent service.
-            """.strip()
-
-        # Setup the Daily transport
-        transport = DailyTransport(
-            room_url,
-            token,
-            "Custard Bot",
-            DailyParams(
-                api_url=os.getenv("DAILY_API_KEY", ""),
-                api_key=os.getenv("DAILY_API_URL", "https://api.daily.co/v1"),
-                audio_in_enabled=True,
-                audio_out_enabled=True,
-                video_out_enabled=False,
-                transcription_enabled=False, 
-                vad_analyzer=SileroVADAnalyzer(),
-            ),
-        )
-
-        llm = await configure_gemini__multimodal_service(agent_id, agent_system_instruction,agent_type="inbound")
-
-        # Setup the conversational context
-        context = OpenAILLMContext()
-        context_aggregator = llm.create_context_aggregator(context)
-
-        pipeline = Pipeline([
-            transport.input(),                   
-            context_aggregator.user(),        
-            llm,                               # Speech-to-Speech
-            transport.output(),              
-            self.audiobuffer,                   
-            self.transcript.user(),             
-            self.transcript.assistant(),       
-            context_aggregator.assistant(),      
-        ])
-
-        # Create the pipeline task
-        task = PipelineTask(
-            pipeline,
-            params=PipelineParams(
-                allow_interruptions=True,
-            )
-        )
-
-        # Context strategy for flow management
-        context_strategy = ContextStrategyConfig(
-            strategy=ContextStrategy.APPEND,
-        )
-
-        #NOTE: Pipecat flows is not supported by GeminiMulitmodalLLMServices
-        # Initialize the flow manager with the task and context aggregator
-        # self.flow_manager = FlowManager(
-        #     task=task,
-        #     llm=llm,
-        #     context_aggregator=context_aggregator,
-        #     context_strategy=context_strategy,
-        #     flow_config=self.flow_config,
-        # )
-
-        agent_service = AgentService(
-            transport=transport,
-            pipeline=pipeline,
-            task=task,
-            context={"room_url": room_url, "token": token}
-        )
-        self.registry.register(session_id, agent_service)
-
-        #Monitor these events for inbound cases
-        @transport.event_handler("on_first_participant_joined")
-        async def on_first_participant_joined(transport, participant):
-            logger.info(f"First participant joined: {participant['id']}")
-            await self.audiobuffer.start_recording()
-        
-        @transport.event_handler("on_participant_left")
-        async def on_participant_left(transport, participant, reason):
-            logger.info(f"Participant left: {participant['id']}, reason: {reason}")
-            
-            try:
-                # Stop recording first
-                await self.audiobuffer.stop_recording()
-                
-                # Execute post-call operations
-                await self.handle_post_call_operations(
-                    room_url=room_url, 
-                    token=token, 
-                    call_id=call_id, 
-                    sip_uri=sip_uri, 
-                    session_id=session_id,
-                    company_id=company_id,
-                    agent_id=agent_id,
-                    caller_number=caller_number
-                )
-
-            except Exception as e:
-                logger.error(f"Error in post-call operations: {e}")
-            
-            finally:
-                # Always attempt graceful shutdown first
-                try:
-                    if not task.has_finished():
-                        await task.stop_when_done()
-                except Exception as e:
-                    logger.error(f"Error in graceful shutdown: {e}")
-                    # Only use immediate cancellation as last resort
-                    try:
-                        await task.cancel()
-                    except Exception as cancel_error:
-                        logger.error(f"Error in task cancellation: {cancel_error}")
-                
-                # Clean up registry only once
-                try:
-                    self.registry.remove(session_id)
-                except Exception as e:
-                    logger.error(f"Error removing from registry: {e}")
-        
-        @self.transcript.event_handler("on_transcript_update")
-        async def handle_transcript_update(processor, frame):
-            # Each message contains role (user/assistant), content, and timestamp
-            for message in frame.messages:
-                message_data = {
-                    "timestamp": message.timestamp,
-                    "role": message.role,
-                    "content": message.content
-                }
-                
-                self.conversation_history.append(message_data)
-                print(f"[{message.timestamp}] {message.role}: {message.content}")
-        
-               
         @self.audiobuffer.event_handler("on_audio_data")
         async def on_audio_data(buffer, audio, sample_rate, num_channels):
             logger.info(f"Received audio data: {len(audio)} bytes, {sample_rate}Hz, {num_channels} channels")

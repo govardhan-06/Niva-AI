@@ -13,7 +13,6 @@ class DailyCall(TimestampBase):
     Fields:
         call_sid (CharField): Unique identifier for the call
         call_summary (TextField): Summary of the call conversation
-        recording_url (CharField): URL to access the call recording
         student (ForeignKey): student associated with this call
         course (ForeignKey): course associated with this call
         agent (ForeignKey): Agent associated with this calll
@@ -45,12 +44,6 @@ class DailyCall(TimestampBase):
     transcription = TextField(
         blank=True,
         help_text="Transcription of the call conversation"
-    )
-    
-    recording_url = CharField(
-        max_length=255,
-        blank=True,
-        help_text="URL to access the call recording"
     )
     
     student = ForeignKey(

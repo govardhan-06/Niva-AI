@@ -2,7 +2,7 @@ import logging
 from django.core.exceptions import ObjectDoesNotExist
 from asgiref.sync import sync_to_async
 from niva_app.models.agents import Agent
-from niva_app.models.company import Company
+from niva_app.models.course import Course
 from niva_app.models.memory import Memory
 from niva_app.models.rag import Document
 from niva_app.management.commands.query_agent_memory import gemini_client
@@ -11,7 +11,7 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 class AgentContextService:
-    """Service to fetch and build agent context dynamically."""
+    """Service to fetch and build agent context dynamically for interview preparation."""
 
     @staticmethod
     @sync_to_async
@@ -40,40 +40,40 @@ class AgentContextService:
 
     @staticmethod
     @sync_to_async
-    def get_agent_context(company_id: str, agent_id: str) -> str:
+    def get_agent_context(course_id: str, agent_id: str) -> str:
         """
-        Fetch agent and company data to build dynamic system instruction.
+        Fetch agent and course data to build dynamic system instruction for interview preparation.
         
         Args:
-            company_id: ID of the company
+            course_id: ID of the course
             agent_id: ID of the agent
             
         Returns:
-            str: System instruction/context for the agent
+            str: System instruction/context for the interview agent
         """
-        logger.info(f"Starting agent context loading for agent_id: {agent_id}, company_id: {company_id}")
+        logger.info(f"Starting agent context loading for agent_id: {agent_id}, course_id: {course_id}")
         
         try:
-            agent = Agent.objects.select_related('company').get(
+            # Get agent and associated courses
+            agent = Agent.objects.prefetch_related('courses').get(
                 id=agent_id,
-                company_id=company_id,
                 is_active=True
             )
             
-            logger.info(f"Agent found: {agent.name}, is_inbound: {agent.is_inbound}, language: {agent.language}")
+            # Check if agent is associated with the course
+            course = agent.courses.filter(id=course_id, is_active=True).first()
+            if not course:
+                # Try to get the course directly if not associated
+                course = Course.objects.get(id=course_id, is_active=True)
+                logger.warning(f"Agent {agent.name} not directly associated with course {course.name}")
             
-            company = agent.company
+            logger.info(f"Agent found: {agent.name}, language: {agent.language}")
+            logger.info(f"Course found: {course.name}, type: Interview Preparation")
             
-            logger.info(f"Company found: {company.name}, company_id: {company.id}")
-            
-            # Get dynamic context from documents based on agent type
-            logger.info("Extracting dynamic context from documents...")
-            if agent.is_inbound:
-                dynamic_context = AgentContextService._get_dynamic_context_for_inbound(company)
-                context = AgentContextService._build_inbound_context(agent, company, dynamic_context)
-            else:
-                dynamic_context = AgentContextService._get_dynamic_context_for_outbound(company)
-                context = AgentContextService._build_outbound_context(agent, company, dynamic_context)
+            # Get dynamic context from course documents
+            logger.info("Extracting dynamic context from course documents...")
+            dynamic_context = AgentContextService._get_dynamic_context_for_course(course)
+            context = AgentContextService._build_interview_context(agent, course, dynamic_context)
             
             logger.info(f"Final context length: {len(context)} characters")
             logger.info(f"Context preview (first 500 chars): {context[:500]}...")
@@ -81,76 +81,54 @@ class AgentContextService:
             return context
                 
         except ObjectDoesNotExist:
-            logger.error(f"Agent {agent_id} not found for company {company_id}")
-            raise ValueError(f"Agent not found or not active")
+            logger.error(f"Agent {agent_id} not found or course {course_id} not found")
+            raise ValueError(f"Agent or course not found or not active")
         except Exception as e:
             logger.error(f"Error fetching agent context: {e}")
             logger.exception("Full traceback:")
             raise ValueError(f"Failed to load agent context: {str(e)}")
     
     @staticmethod
-    def _get_dynamic_context_for_outbound(company: Company) -> str:
-        """Get dynamic context for outbound sales agents from documents."""
-        logger.info(f"Getting outbound context for company: {company.name}")
+    def _get_dynamic_context_for_course(course: Course) -> str:
+        """Get dynamic context for interview agents from course documents."""
+        logger.info(f"Getting interview context for course: {course.name}")
         
         try:
-            # Query for sales-related content
-            sales_query = f"""
-            Find information about {company.name} that would be useful for a sales representative including:
-            - Products and services offered
-            - Key selling points and benefits
-            - Pricing information
-            - Target customers
-            - Competitive advantages
-            - Sales processes and policies
-            - Common objections and responses
+            # Query for interview and exam-related content
+            interview_query = f"""
+            Find information about {course.name} that would be useful for an interview agent including:
+            - Course syllabus and topics covered
+            - Evaluation criteria and assessment methods
+            - Common interview questions and expected answers
+            - Key competencies and skills being tested
+            - Interview format and structure
+            - Passing scores and grading criteria
+            - Prerequisites and preparation guidelines
+            - Sample questions and model answers
+            - Important concepts and theories
+            - Current affairs and relevant updates
+            - Interview tips and best practices
+            - Common mistakes to avoid
             """
             
-            dynamic_context = AgentContextService._query_company_documents(company, sales_query)
-            logger.info(f"Retrieved {len(dynamic_context)} characters of outbound context")
+            dynamic_context = AgentContextService._query_course_documents(course, interview_query)
+            logger.info(f"Retrieved {len(dynamic_context)} characters of course context")
             return dynamic_context
             
         except Exception as e:
-            logger.error(f"Error getting outbound dynamic context: {e}")
-            return f"Sales representative for {company.name}. Focus on understanding customer needs and presenting solutions."
+            logger.error(f"Error getting course dynamic context: {e}")
+            return f"Interview agent for {course.name}. Focus on evaluating candidate knowledge and skills according to course requirements."
     
     @staticmethod
-    def _get_dynamic_context_for_inbound(company: Company) -> str:
-        """Get dynamic context for inbound customer service agents from documents."""
-        logger.info(f"Getting inbound context for company: {company.name}")
-        
+    def _query_course_documents(course: Course, query: str) -> str:
+        """Query course documents for relevant information."""
         try:
-            # Query for customer service-related content
-            service_query = f"""
-            Find information about {company.name} that would be useful for a customer service representative including:
-            - Company policies and procedures
-            - Product support information
-            - Billing and account information
-            - Common customer issues and solutions
-            - Escalation procedures
-            - Refund and return policies
-            - Technical support guidelines
-            - Frequently asked questions
-            """
-            
-            dynamic_context = AgentContextService._query_company_documents(company, service_query)
-            logger.info(f"Retrieved {len(dynamic_context)} characters of inbound context")
-            return dynamic_context
-            
-        except Exception as e:
-            logger.error(f"Error getting inbound dynamic context: {e}")
-            return f"Customer service representative for {company.name}. Focus on resolving customer issues and providing support."
-    
-    @staticmethod
-    def _query_company_documents(company: Company, query: str) -> str:
-        """Query company documents for relevant information."""
-        try:
-            # Get all memories for the company
-            memories = Memory.objects.filter(company=company)
-            logger.info(f"Found {memories.count()} memories for company")
+            # Get all memories for the course
+            memories = Memory.objects.filter(course=course)
+            logger.info(f"Found {memories.count()} memories for course")
             
             if not memories.exists():
-                logger.warning("No memories found for company")
+                logger.warning("No memories found for course")
                 return ""
             
             # Get documents from all memories
@@ -170,30 +148,36 @@ class AgentContextService:
             
             # Use AI to extract relevant information based on the query
             logger.info("Analyzing document content with AI...")
-            relevant_context = AgentContextService._analyze_documents_for_query(all_content, company.name, query)
+            relevant_context = AgentContextService._analyze_documents_for_query(all_content, course.name, query)
             
             logger.info(f"Extracted relevant context: {len(relevant_context)} characters")
             return relevant_context
             
         except Exception as e:
-            logger.error(f"Error querying company documents: {e}")
+            logger.error(f"Error querying course documents: {e}")
             logger.exception("Full traceback:")
             return ""
     
     @staticmethod
-    def _analyze_documents_for_query(content: str, company_name: str, query: str) -> str:
+    def _analyze_documents_for_query(content: str, course_name: str, query: str) -> str:
         """Use AI to analyze document content and extract information relevant to the query."""
         try:
             prompt = f"""
-            Based on the following query about {company_name}, extract and summarize the most relevant information from the company documents:
+            Based on the following query about {course_name}, extract and summarize the most relevant information from the course documents:
 
             Query: {query}
 
-            Company Documents:
+            Course Documents:
             {content[:8000]}  # Limit content length
 
-            Please provide a comprehensive but concise summary of the relevant information that would help answer the query. 
-            Focus on actionable information that would be useful for the agent.
+            Please provide a comprehensive but concise summary of the relevant information that would help an interview agent conduct effective interviews. 
+            Focus on actionable information including:
+            - Key topics and concepts to test
+            - Evaluation criteria and scoring guidelines
+            - Sample questions and expected responses
+            - Common areas where candidates struggle
+            - Important skills and competencies to assess
+            
             If no relevant information is found, return "No specific information available."
             """
             
@@ -216,36 +200,71 @@ class AgentContextService:
             return ""
     
     @staticmethod
-    def _build_outbound_context(agent: Agent, company: Company, dynamic_context: str) -> str:
-        """Build context for outbound agents with hardcoded base + dynamic context."""
+    def _build_interview_context(agent: Agent, course: Course, dynamic_context: str) -> str:
+        """Build context for interview agents with course-specific information."""
         
-        # Hardcoded base context for outbound sales agents
+        # Get course details for context
+        course_info = f"""
+        Course: {course.name}
+        Description: {course.description}
+        Passing Score: {course.passing_score}/{course.max_score}
+        Syllabus: {course.syllabus[:500] if course.syllabus else 'Not specified'}
+        Instructions: {course.instructions[:300] if course.instructions else 'Follow standard interview protocols'}
+        Evaluation Criteria: {course.evaluation_criteria[:400] if course.evaluation_criteria else 'Standard competency assessment'}
+        """
+        
+        # Base context for interview agents
         base_context = f"""
-        You are {agent.name}, a professional sales representative calling from {company.name}. 
-        You're conducting outbound calls to prospective customers. 
+        You are {agent.name}, a professional interview agent conducting {course.name} interviews.
+        You are an expert interviewer specializing in competitive exam preparation and assessment.
         Your responses will be read aloud, so keep them natural and conversational in {dict(agent.LANGUAGE_CHOICES)[agent.language]}.
 
-        CONVERSATION STYLE:
-        - Sound human and natural - use "um," brief pauses, and casual language
-        - Keep responses short (5-15 words when possible)
-        - Show you're listening: "Oh really?" "That makes sense" "I get that"
-        - Ask follow-ups like a curious person: "How's that working for you?" "What have you tried?"
-        - Share relatable moments: "Yeah, I hear that a lot" "That's pretty common"
+        COURSE INFORMATION:
+        {course_info}
+
+        INTERVIEW STYLE:
+        - Sound professional yet approachable - use natural speech patterns
+        - Keep questions clear and well-structured
+        - Allow candidates time to think and respond
+        - Use encouraging phrases: "Good point," "That's interesting," "Can you elaborate?"
+        - Ask follow-up questions to assess depth of understanding
+        - Provide gentle guidance when candidates struggle
         - For dates, say "March fifteenth" not "March 15th"
-        - For phone numbers, use natural pauses like "five five five... six seven eight... nine zero one"
-        - Use everyday time expressions like "two thirty in the afternoon" or "quarter past three"
-        - Express genuine emotions - excitement, empathy, understanding
-        - Let conversations flow naturally rather than rushing to close
+        - Use natural time expressions like "two thirty" not "14:30"
+        - Express appreciation for thoughtful answers
+        - Maintain a supportive but evaluative tone
 
-        SALES APPROACH:
-        - Build rapport first before pitching
-        - Listen more than you talk
-        - Ask open-ended questions to understand needs
-        - Present solutions that match their specific problems
-        - Handle objections with empathy and understanding
-        - Don't be pushy - focus on helping
+        INTERVIEW APPROACH:
+        - Begin with easier questions to build candidate confidence
+        - Gradually increase difficulty to assess true capability
+        - Test both theoretical knowledge and practical application
+        - Ask scenario-based questions relevant to the field
+        - Assess critical thinking and problem-solving skills
+        - Evaluate communication skills and clarity of thought
+        - Test current affairs knowledge where relevant
+        - Ask about motivation and career goals
+        - Provide constructive feedback when appropriate
 
-        Remember: You're a real person having a genuine conversation, not a scripted agent.
+        ASSESSMENT FOCUS:
+        - Knowledge depth in core subjects
+        - Analytical and reasoning abilities
+        - Communication and presentation skills
+        - Confidence and composure under pressure
+        - Practical application of concepts
+        - Current awareness and general knowledge
+        - Leadership and decision-making potential
+        - Ethical reasoning and integrity
+
+        INTERVIEW STRUCTURE:
+        1. Warm welcome and ice-breaker questions
+        2. Core subject knowledge assessment
+        3. Scenario-based problem solving
+        4. Current affairs and general awareness
+        5. Personal motivation and goals
+        6. Closing remarks and next steps
+
+        Remember: You're evaluating candidates fairly while helping them showcase their best abilities.
+        Be thorough but kind, challenging but supportive.
         """
         
         # Add dynamic context if available
@@ -253,99 +272,48 @@ class AgentContextService:
             full_context = f"""
             {base_context}
 
-            COMPANY & PRODUCT INFORMATION:
+            COURSE-SPECIFIC KNOWLEDGE & GUIDELINES:
             {dynamic_context}
+
+            Use this information to:
+            - Ask relevant questions based on the syllabus
+            - Apply proper evaluation criteria
+            - Reference current exam patterns and requirements
+            - Provide accurate guidance about the selection process
             """
         else:
             full_context = f"""
             {base_context}
 
-            COMPANY INFORMATION:
-            You represent {company.name}. Focus on understanding customer needs and presenting appropriate solutions.
-            """
-        
-        return full_context.strip()
-
-    @staticmethod
-    def _build_inbound_context(agent: Agent, company: Company, dynamic_context: str) -> str:
-        """Build context for inbound agents with hardcoded base + dynamic context."""
-        
-        # Hardcoded base context for inbound customer service agents
-        base_context = f"""
-        You are {agent.name}, a professional customer service representative at {company.name}. 
-        You're handling inbound calls from existing or potential customers.
-        Your responses will be read aloud, so keep them natural and conversational in {dict(agent.LANGUAGE_CHOICES)[agent.language]}.
-
-        CONVERSATION STYLE:
-        - Sound human and natural - use "um," brief pauses, and casual language
-        - Keep responses conversational and brief when appropriate
-        - Show you're listening: "Oh I see" "That makes sense" "Got it"
-        - Ask clarifying questions: "Can you tell me more about that?" "What exactly happened?"
-        - Express empathy: "I understand how frustrating that must be" "Let me help you with that"
-        - For dates, say "March fifteenth" not "March 15th"
-        - For phone numbers, use natural pauses like "five five five... six seven eight... nine zero one"
-        - Use everyday time expressions like "two thirty in the afternoon" or "quarter past three"
-        - Take brief pauses to "look things up" or "check on that"
-        - Use natural time expressions: "two thirty" not "14:30"
-
-        CUSTOMER SERVICE APPROACH:
-        - Be empathetic and patient, especially with frustrated customers
-        - Listen actively to understand the issue completely
-        - Ask clarifying questions to get all necessary details
-        - Provide clear, step-by-step solutions
-        - Follow up to ensure the issue is resolved
-        - Know when to escalate to supervisors or specialists
-        - Always maintain professionalism and helpfulness
-
-        RESPONSIBILITIES:
-        - Handle complaints and resolve issues
-        - Provide product and service information
-        - Process billing inquiries and account questions
-        - Offer technical support when appropriate
-        - Schedule follow-up calls or appointments
-        - Escalate complex issues to appropriate departments
-
-        Remember: You're a real person genuinely trying to help, not a scripted bot.
-        """
-        
-        # Add dynamic context if available
-        if dynamic_context:
-            full_context = f"""
-            {base_context}
-
-            COMPANY POLICIES & INFORMATION:
-            {dynamic_context}
-            """
-        else:
-            full_context = f"""
-            {base_context}
-
-            COMPANY INFORMATION:
-            You represent {company.name}. Focus on resolving customer issues and providing excellent service.
+            GENERAL GUIDANCE:
+            Focus on assessing candidates based on standard {course.name} requirements.
+            Test knowledge, skills, and aptitude relevant to the field.
+            Provide fair and thorough evaluation while maintaining professionalism.
             """
         
         return full_context.strip()
     
     @staticmethod
-    def _extract_company_context(company: Company) -> dict:
-        """Extract relevant company information from uploaded documents."""
-        logger.info(f"Extracting context for company: {company.name}")
+    def _extract_course_context(course: Course) -> dict:
+        """Extract relevant course information from uploaded documents."""
+        logger.info(f"Extracting context for course: {course.name}")
         
         context_data = {
-            "company_info": "",
-            "products_services": "",
-            "policies": "",
-            "faqs": "",
-            "talking_points": ""
+            "syllabus_details": "",
+            "evaluation_criteria": "",
+            "sample_questions": "",
+            "key_concepts": "",
+            "preparation_tips": "",
+            "current_affairs": ""
         }
         
         try:
-            # Get all memories for the company
-            memories = Memory.objects.filter(company=company)
-            logger.info(f"Found {memories.count()} memories for company")
+            # Get all memories for the course
+            memories = Memory.objects.filter(course=course)
+            logger.info(f"Found {memories.count()} memories for course")
             
             if not memories.exists():
-                logger.warning("No memories found for company")
+                logger.warning("No memories found for course")
                 return context_data
             
             # Get documents from all memories
@@ -365,41 +333,43 @@ class AgentContextService:
             
             # Use AI to extract structured information
             logger.info("Analyzing document content with AI...")
-            context_data = AgentContextService._analyze_document_content(all_content, company.name)
+            context_data = AgentContextService._analyze_course_content(all_content, course.name)
             
             logger.info("Document analysis completed")
             for key, value in context_data.items():
                 logger.info(f"{key}: {len(value)} characters")
             
         except Exception as e:
-            logger.error(f"Error extracting company context: {e}")
+            logger.error(f"Error extracting course context: {e}")
             logger.exception("Full traceback:")
         
         return context_data
     
     @staticmethod
-    def _analyze_document_content(content: str, company_name: str) -> dict:
-        """Use AI to analyze document content and extract structured information."""
+    def _analyze_course_content(content: str, course_name: str) -> dict:
+        """Use AI to analyze course content and extract structured information for interviews."""
         try:
             prompt = f"""
-            Analyze the following company documents for {company_name} and extract key information for an AI sales agent. 
+            Analyze the following course documents for {course_name} and extract key information for an AI interview agent. 
             Organize the information into these categories:
 
-            1. COMPANY_INFO: Company description, mission, values, history
-            2. PRODUCTS_SERVICES: List of products/services offered
-            3. POLICIES: Important policies, terms, conditions
-            4. FAQS: Common questions and answers
-            5. TALKING_POINTS: Key selling points, benefits, differentiators
+            1. SYLLABUS_DETAILS: Detailed syllabus, topics, and subtopics to cover
+            2. EVALUATION_CRITERIA: How to assess and score candidates
+            3. SAMPLE_QUESTIONS: Example interview questions and expected answers
+            4. KEY_CONCEPTS: Important concepts, theories, and principles
+            5. PREPARATION_TIPS: Guidance for candidates and interview best practices
+            6. CURRENT_AFFAIRS: Relevant current events and updates
 
             Content to analyze:
             {content[:8000]}  # Limit content length
 
             Provide a structured response in the following format:
-            COMPANY_INFO: [extracted info]
-            PRODUCTS_SERVICES: [extracted info]
-            POLICIES: [extracted info] 
-            FAQS: [extracted info]
-            TALKING_POINTS: [extracted info]
+            SYLLABUS_DETAILS: [extracted info]
+            EVALUATION_CRITERIA: [extracted info]
+            SAMPLE_QUESTIONS: [extracted info] 
+            KEY_CONCEPTS: [extracted info]
+            PREPARATION_TIPS: [extracted info]
+            CURRENT_AFFAIRS: [extracted info]
             """
             
             response = gemini_client.models.generate_content(
@@ -414,24 +384,26 @@ class AgentContextService:
             return context_data
             
         except Exception as e:
-            logger.error(f"Error analyzing document content with AI: {e}")
+            logger.error(f"Error analyzing course content with AI: {e}")
             return {
-                "company_info": f"Company: {company_name}",
-                "products_services": "",
-                "policies": "",
-                "faqs": "",
-                "talking_points": ""
+                "syllabus_details": f"Course: {course_name} - Standard curriculum",
+                "evaluation_criteria": "Standard assessment criteria",
+                "sample_questions": "",
+                "key_concepts": "",
+                "preparation_tips": "",
+                "current_affairs": ""
             }
     
     @staticmethod
     def _parse_ai_response(response_text: str) -> dict:
-        """Parse AI response into structured data."""
+        """Parse AI response into structured data for course context."""
         context_data = {
-            "company_info": "",
-            "products_services": "",
-            "policies": "",
-            "faqs": "",
-            "talking_points": ""
+            "syllabus_details": "",
+            "evaluation_criteria": "",
+            "sample_questions": "",
+            "key_concepts": "",
+            "preparation_tips": "",
+            "current_affairs": ""
         }
         
         try:
@@ -440,21 +412,24 @@ class AgentContextService:
             
             for line in sections:
                 line = line.strip()
-                if line.startswith('COMPANY_INFO:'):
-                    current_section = 'company_info'
-                    context_data[current_section] = line.replace('COMPANY_INFO:', '').strip()
-                elif line.startswith('PRODUCTS_SERVICES:'):
-                    current_section = 'products_services'
-                    context_data[current_section] = line.replace('PRODUCTS_SERVICES:', '').strip()
-                elif line.startswith('POLICIES:'):
-                    current_section = 'policies'
-                    context_data[current_section] = line.replace('POLICIES:', '').strip()
-                elif line.startswith('FAQS:'):
-                    current_section = 'faqs'
-                    context_data[current_section] = line.replace('FAQS:', '').strip()
-                elif line.startswith('TALKING_POINTS:'):
-                    current_section = 'talking_points'
-                    context_data[current_section] = line.replace('TALKING_POINTS:', '').strip()
+                if line.startswith('SYLLABUS_DETAILS:'):
+                    current_section = 'syllabus_details'
+                    context_data[current_section] = line.replace('SYLLABUS_DETAILS:', '').strip()
+                elif line.startswith('EVALUATION_CRITERIA:'):
+                    current_section = 'evaluation_criteria'
+                    context_data[current_section] = line.replace('EVALUATION_CRITERIA:', '').strip()
+                elif line.startswith('SAMPLE_QUESTIONS:'):
+                    current_section = 'sample_questions'
+                    context_data[current_section] = line.replace('SAMPLE_QUESTIONS:', '').strip()
+                elif line.startswith('KEY_CONCEPTS:'):
+                    current_section = 'key_concepts'
+                    context_data[current_section] = line.replace('KEY_CONCEPTS:', '').strip()
+                elif line.startswith('PREPARATION_TIPS:'):
+                    current_section = 'preparation_tips'
+                    context_data[current_section] = line.replace('PREPARATION_TIPS:', '').strip()
+                elif line.startswith('CURRENT_AFFAIRS:'):
+                    current_section = 'current_affairs'
+                    context_data[current_section] = line.replace('CURRENT_AFFAIRS:', '').strip()
                 elif current_section and line:
                     context_data[current_section] += f" {line}"
         
@@ -465,10 +440,10 @@ class AgentContextService:
     
     @staticmethod
     @sync_to_async
-    def get_relevant_context_for_query(company_id: str, query: str) -> str:
+    def get_relevant_context_for_query(course_id: str, query: str) -> str:
         """
-        Get relevant context from company documents based on a specific query.
-        This can be used during conversations for real-time information retrieval.
+        Get relevant context from course documents based on a specific query.
+        This can be used during interviews for real-time information retrieval.
         """
         try:
             # Create embedding for the query
@@ -477,16 +452,16 @@ class AgentContextService:
                 contents=[query]
             ).embeddings[0]
             
-            # Get company documents
-            company = Company.objects.get(id=company_id)
-            memories = Memory.objects.filter(company=company)
+            # Get course documents
+            course = Course.objects.get(id=course_id)
+            memories = Memory.objects.filter(course=course)
             documents = Document.objects.filter(memory__in=memories)
             
             if not documents.exists():
-                return "No relevant information found in company documents."
+                return "No relevant information found in course documents."
             
-            # Find most similar documents (you'll need to implement similarity search)
-            # This is a simplified version - you might want to use pgvector's similarity operators
+            # Find most similar documents (simplified version)
+            # In production, you might want to use pgvector's similarity operators
             relevant_docs = documents[:5]  # Get top 5 for now
             
             context = "\n".join([doc.content for doc in relevant_docs])
@@ -498,32 +473,38 @@ class AgentContextService:
     
     @staticmethod
     @sync_to_async
-    def validate_agent_company_relationship(company_id: str, agent_id: str) -> bool:
+    def validate_agent_course_relationship(course_id: str, agent_id: str) -> bool:
         """
-        Validate that the agent belongs to the specified company.
+        Validate that the agent is associated with the specified course.
         
         Args:
-            company_id: ID of the company
+            course_id: ID of the course
             agent_id: ID of the agent
             
         Returns:
             bool: True if relationship is valid, False otherwise
         """
         try:
-            logger.info(f"Validating relationship: agent {agent_id} in company {company_id}")
+            logger.info(f"Validating relationship: agent {agent_id} with course {course_id}")
             
-            agent = Agent.objects.get(
-                id=agent_id,
-                company_id=company_id,
-                is_active=True
-            )
+            # Check if agent exists and is active
+            agent = Agent.objects.get(id=agent_id, is_active=True)
             
-            logger.info(f"Relationship validated: agent {agent.name} belongs to company {agent.company.name}")
-            return True
+            # Check if course exists and is active
+            course = Course.objects.get(id=course_id, is_active=True)
             
-        except Agent.DoesNotExist:
-            logger.error(f"Agent {agent_id} not found in company {company_id} or not active")
+            # Check if agent is associated with the course
+            if agent.courses.filter(id=course_id).exists():
+                logger.info(f"Relationship validated: agent {agent.name} is associated with course {course.name}")
+                return True
+            else:
+                logger.warning(f"Agent {agent.name} is not directly associated with course {course.name}")
+                # You might choose to allow this or return False based on your business logic
+                return True  # Allow for now, but log the warning
+            
+        except (Agent.DoesNotExist, Course.DoesNotExist):
+            logger.error(f"Agent {agent_id} or course {course_id} not found or not active")
             return False
         except Exception as e:
-            logger.error(f"Error validating agent-company relationship: {e}")
+            logger.error(f"Error validating agent-course relationship: {e}")
             return False

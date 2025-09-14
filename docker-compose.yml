@@ -20,9 +20,9 @@ services:
   postgres:
     image: ankane/pgvector:v0.5.1
     environment:
-      POSTGRES_DB: ${DB_NAME:-qulander_dev}
-      POSTGRES_USER: ${DB_USER:-qulander_dev_user}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-qulander_password}
+      POSTGRES_DB: ${DB_NAME:-niva_dev}
+      POSTGRES_USER: ${DB_USER:-niva_dev_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-niva_password}
     ports:
       - 5432:5432
     volumes:
@@ -30,7 +30,7 @@ services:
 
   main:
     build: .
-    image: qulander-backend
+    image: niva-backend
     env_file:
       - .env
     command: |
@@ -46,9 +46,9 @@ services:
       "
     environment:
       - POSTGRES_HOST=postgres
-      - POSTGRES_USER=${DB_USER:-qulander_dev_user}
-      - POSTGRES_PASSWORD=${DB_PASSWORD:-qulander_password}
-      - POSTGRES_DB=${DB_NAME:-qulander_dev}
+      - POSTGRES_USER=${DB_USER:-niva_dev_user}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-niva_password}
+      - POSTGRES_DB=${DB_NAME:-niva_dev}
     ports:
       - 8000:8000
     volumes:
@@ -63,9 +63,9 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  custard_app:
+  niva_app:
     build: .
-    image: qulander-backend
+    image: niva-backend
     env_file:
       - .env
     command: |
@@ -74,8 +74,8 @@ services:
         tools/wait-for-it.sh postgres:5432
         tools/wait-for-it.sh main:8000
 
-        # Start custard_app service
-        python -m custard_app.app
+        # Start niva_app service
+        python -m niva_app.app
       "
     volumes:
       - .:/app
@@ -89,7 +89,7 @@ services:
 
   pipecat_agents:
     build: .
-    image: qulander-backend
+    image: niva-backend
     env_file:
       - .env
     command: |

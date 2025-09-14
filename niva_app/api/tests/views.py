@@ -1,7 +1,7 @@
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from custard_app.services.pipecat_agent import AgentService
+from niva_app.services.pipecat_agent import AgentService
 import uuid
 import logging
 
@@ -25,7 +25,7 @@ def test_voice_call(request):
             "daily_call_id": data.get("daily_call_id", f"test_call_{uuid.uuid4().hex[:8]}"),
             "daily_room_url": data.get("daily_room_url", "https://test.daily.co/test-room"),
             "sip_endpoint": data.get("sip_endpoint", "test@sip.example.com"),
-            "company_id": data.get("company_id", "test_company_123"),
+            "course_id": data.get("course_id", "test_course_123"),
             "agent_id": data.get("agent_id", "test_agent_456"),
             "token": data.get("token", "test_daily_token_123"),  # Add token parameter
             "twilio_data": data.get("twilio_data", {"test": True, "call_sid": "test_sid"})

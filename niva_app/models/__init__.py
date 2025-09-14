@@ -7,7 +7,6 @@ from .students import Student
 from .course import Course
 from .dailycalls import DailyCall
 from .dailyrooms import DailyRooms
-from .verification import EmailVerificationOTP, PhoneVerificationOTP
 from .feedback import Feedback
 
 # Make all models available at the package level
@@ -25,7 +24,5 @@ __all__ = [
     'Course',
     'DailyCall',
     'DailyRooms',
-    'EmailVerificationOTP',
-    'PhoneVerificationOTP',
     'Feedback',
 ]

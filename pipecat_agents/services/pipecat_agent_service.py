@@ -69,7 +69,7 @@ class PipecatAgentService:
         daily_room_url: str,
         sip_endpoint: str, 
         twilio_data: dict = None,
-        company_id: str = None,
+        course_id: str = None,
         agent_id: str = None,
         token: str = None  
     ) -> dict:
@@ -83,7 +83,7 @@ class PipecatAgentService:
             daily_room_url: Daily.co room URL
             sip_endpoint: SIP endpoint for the call
             twilio_data: Additional Twilio call data
-            company_id: Company identifier
+            course_id: course identifier
             agent_id: Agent identifier
             token: Daily.co authentication token
         
@@ -102,7 +102,7 @@ class PipecatAgentService:
                 daily_call_id=daily_call_id,
                 room_url=daily_room_url,
                 sip_endpoint=sip_endpoint,
-                company_id=company_id,
+                course_id=course_id,
                 agent_id=agent_id,
                 phone_number=phone_number,
                 location_id=location_id,
@@ -118,7 +118,6 @@ class PipecatAgentService:
                 "call_id": daily_call_id,
                 "session_id": bot_process_info["session_id"],
                 "process_id": bot_process_info["process_id"],
-                "agent_type": bot_process_info["agent_type"]
             }
             
         except Exception as e:
@@ -134,7 +133,7 @@ class PipecatAgentService:
         daily_call_id: str,
         room_url: str,
         sip_endpoint: str = None,
-        company_id: str = None,
+        course_id: str = None,
         agent_id: str = None,
         phone_number: str = None,
         location_id: str = None,
@@ -148,7 +147,7 @@ class PipecatAgentService:
             daily_call_id: Daily.co call identifier
             room_url: Daily.co room URL
             sip_endpoint: SIP endpoint for the call
-            company_id: Company identifier
+            course_id: course identifier
             agent_id: Agent identifier
             phone_number: Customer's phone number
             location_id: Location identifier
@@ -165,12 +164,12 @@ class PipecatAgentService:
             session_id = f"session_{daily_call_id}"
             
             # Determine agent type
-            agent_type, agent_name = await self._get_agent_type(company_id, agent_id)
+            agent_name = await self._get_agent_name(course_id, agent_id)
             
-            logger.info(f"Starting {agent_type} bot process for session: {session_id}")
+            logger.info(f"Starting bot process for session: {session_id}")
             
             # Create runner instance
-            runner = PipecatAgentRunner(agent_type=agent_type)
+            runner = PipecatAgentRunner()
             
             # Prepare context data
             context_data = {
@@ -179,10 +178,9 @@ class PipecatAgentService:
                 "sip_endpoint": sip_endpoint,
                 "phone_number": phone_number,
                 "location_id": location_id,
-                "company_id": company_id,
+                "course_id": course_id,
                 "agent_id": agent_id,
                 "agent_name": agent_name,
-                "agent_type": agent_type,
                 "twilio_data": twilio_data or {}
             }
             
@@ -191,36 +189,21 @@ class PipecatAgentService:
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
                 try:
-                    if agent_type == "inbound":
-                        logger.info(f"Starting inbound agent {agent_name} for call {daily_call_id}")
-                        loop.run_until_complete(
-                            runner.run_inbound_agent(
-                                room_url=room_url,
-                                token=token,
-                                call_id=daily_call_id,
-                                sip_uri=sip_endpoint,
-                                session_id=session_id,
-                                company_id=company_id,
-                                agent_id=agent_id,
-                                caller_number=phone_number
-                            )
+                    logger.info(f"Starting inbound agent {agent_name} for call {daily_call_id}")
+                    loop.run_until_complete(
+                        runner.run_inbound_agent(
+                            room_url=room_url,
+                            token=token,
+                            call_id=daily_call_id,
+                            sip_uri=sip_endpoint,
+                            session_id=session_id,
+                            course_id=course_id,
+                            agent_id=agent_id,
+                            caller_number=phone_number
                         )
-                    else:
-                        logger.info(f"Starting outbound agent {agent_name} for call {daily_call_id}")
-                        loop.run_until_complete(
-                            runner.run_outbound_agent(
-                                room_url=room_url,
-                                token=token,
-                                call_id=daily_call_id,
-                                sip_uri=sip_endpoint,
-                                session_id=session_id,
-                                company_id=company_id,
-                                agent_id=agent_id,
-                                caller_number=phone_number
-                            )
-                        )
+                    )
                 except Exception as e:
-                    logger.error(f"Error in {agent_type} agent task for session {daily_call_id}: {e}")
+                    logger.error(f"Error in agent task for session {daily_call_id}: {e}")
                     logger.exception("Full traceback:")
                 finally:
                     # Clean up process tracking
@@ -238,7 +221,6 @@ class PipecatAgentService:
                 "session_id": session_id,
                 "process_id": thread.ident,
                 "thread": thread,
-                "agent_type": agent_type,
                 "agent_name": agent_name,
                 "context": context_data,
                 "started_at": asyncio.get_event_loop().time()
@@ -254,18 +236,18 @@ class PipecatAgentService:
             logger.error(f"Failed to start bot process for call {daily_call_id}: {e}")
             raise
     
-    async def _get_agent_type(self, company_id: str, agent_id: str) -> Tuple[str, str]:
+    async def _get_agent_name(self, course_id: str, agent_id: str) -> Tuple[str, str]:
         """
-        Determine agent type (inbound/outbound) and get agent name.
+        Determine agent name.
         """
         @sync_to_async
         def _get_agent_sync():
             try:
-                agent = Agent.objects.get(id=agent_id, company_id=company_id, is_active=True)
-                return "inbound" if agent.is_inbound else "outbound", agent.name
+                agent = Agent.objects.get(id=agent_id, course_id=course_id, is_active=True)
+                return agent.name
             except Exception as e:
                 logger.error(f"Error determining agent type: {e}")
-                return "outbound", "Unknown Agent"
+                return "Unknown Agent"
 
         return await _get_agent_sync()
     
@@ -322,7 +304,6 @@ class PipecatAgentService:
         if process_info:
             return {
                 "session_id": session_id,
-                "agent_type": process_info["agent_type"],
                 "agent_name": process_info["agent_name"],
                 "started_at": process_info["started_at"],
                 "is_active": process_info["thread"].is_alive(),

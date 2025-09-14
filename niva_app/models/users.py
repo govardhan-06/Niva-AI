@@ -45,16 +45,6 @@ class User(AbstractUser, TimestampBase):
         unique=True,
         help_text="Email address, This will be used for login"
     )
-    is_email_verified = BooleanField(
-        default=False, help_text="Email verification status"
-    )
-
-    phone_number = PhoneNumberField(
-        null=True,
-        blank=True,
-        default=None,
-        help_text="The phone number in E.164 format",
-    )
 
     role = ForeignKey(
         Role, 

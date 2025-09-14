@@ -1,6 +1,6 @@
 from rest_framework import serializers
-from custard_app.lib.validators import agent_name_validator
-from custard_app.models import Agent
+from niva_app.lib.validators import agent_name_validator
+from niva_app.models import Agent
 
 class InputSerializer(serializers.Serializer):
     name = serializers.CharField(validators=[agent_name_validator])

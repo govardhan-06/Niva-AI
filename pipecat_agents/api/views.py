@@ -65,7 +65,7 @@ class HealthCheckView(PublicAPIView):
 @method_decorator(csrf_exempt, name='dispatch')
 class VoiceCallView(AuthenticatedAPIView):
     """
-    Handle incoming voice call requests from custard_app.
+    Handle incoming voice call requests from niva_app.
     Uses the PipecatAgentService for processing.
     Requires microservice authentication.
     """
@@ -107,7 +107,7 @@ class VoiceCallView(AuthenticatedAPIView):
             'daily_room_url': data.get('daily_room_url'),
             'sip_endpoint': data.get('sip_endpoint'),
             'token': data.get('token', ''),  # Extract token from request
-            'company_id': data.get('company_id'),
+            'course_id': data.get('course_id'),
             'agent_id': data.get('agent_id'),
             'location_id': data.get('location_id', ''),
             'phone_number': data.get('phone_number', ''),
@@ -116,7 +116,7 @@ class VoiceCallView(AuthenticatedAPIView):
     
     def _validate_required_fields(self, params):
         """Validate that all required fields are present"""
-        required_fields = ['daily_call_id', 'daily_room_url', 'sip_endpoint', 'company_id', 'agent_id']
+        required_fields = ['daily_call_id', 'daily_room_url', 'sip_endpoint', 'course_id', 'agent_id']
         missing_fields = [field for field in required_fields if not params.get(field)]
         
         if missing_fields:
@@ -137,7 +137,7 @@ class VoiceCallView(AuthenticatedAPIView):
                 daily_room_url=params['daily_room_url'],
                 sip_endpoint=params['sip_endpoint'],
                 twilio_data=params['twilio_data'],
-                company_id=params['company_id'],
+                course_id=params['course_id'],
                 agent_id=params['agent_id'],
                 token=params['token']  # Pass token to service
             )

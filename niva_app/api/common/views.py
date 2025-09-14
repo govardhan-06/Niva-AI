@@ -1,5 +1,5 @@
 """
-Module: custard_app.api.common.views
+Module: niva_app.api.common.views
 
 Common views for API
 
@@ -28,8 +28,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.serializers import Serializer, CharField, BooleanField
 
 from app.config import GCS_BUCKET_NAME, GCP_SA_KEY, GCS_BASE_URL
-from custard_app.models import User
-from custard_app.services.storage import StorageService
+from niva_app.models import User
 
 
 class ResponseMessageMixin:
@@ -114,60 +113,3 @@ class OpenAPI(BaseAPI):
 
     authentication_classes = ()
     permission_classes = ()
-
-
-class GetPresignedUrlInput(Serializer):
-    file_name = CharField(required=True)
-    file_path = CharField(required=True)
-    file_type = CharField(required=True)
-    use_v2_bucket = BooleanField(required=False)
-
-
-class GetPresignedUrl(BaseAPI):
-    input_serializer_class = GetPresignedUrlInput
-
-    def post(self, request, *args, **kwargs):
-        data = self.validate_input_data()
-
-        storage_client = StorageService.get_client()
-
-        file_extension = data["file_name"].split(".")[-1]
-        file_key = f"{data['file_path']}/{uuid.uuid4().hex}.{file_extension}"
-
-        bucket_name = GCS_BUCKET_NAME
-
-        try:
-            bucket = storage_client.bucket(bucket_name)
-            blob = bucket.blob(file_key)
-
-            # Generate signed URL for uploading
-            # URL expires in 15 minutes
-            expires_at = datetime.now() + timedelta(minutes=15)
-
-            signed_url = blob.generate_signed_url(
-                version="v4",
-                expiration=expires_at,
-                method="PUT",
-                content_type=data["file_type"]
-            )
-
-            # Construct the direct URL
-            # Format: https://storage.googleapis.com/BUCKET_NAME/FILE_KEY
-
-            base_url = f"{GCS_BASE_URL}/{bucket_name}"
-
-            return Response(
-                data={
-                    "presigned_url": signed_url,
-                    "file_key": file_key,
-                    "base_url": base_url,
-                    "direct_url": urllib.request.pathname2url(file_key),
-                },
-                status=HTTP_200_OK,
-            )
-
-        except Exception as e:
-            print(e)
-            return Response(
-                status=HTTP_400_BAD_REQUEST,
-            )

@@ -31,7 +31,7 @@ IS_PRODUCTION = ENVIRONMENT == "production"
 SECRET_KEY = 'django-insecure-i2r@#%x0b%os3(tkrfsu2zfx5pq#us28&2@t#%jc*cc_k_((au'
 
 # Pipecat micoservice bot token
-PIPECAT_BOT_API_TOKEN = config.PIPECAT_BOT_TOKEN
+PIPECAT_BOT_API_TOKEN = config.PIPECAT_BOT_API_TOKEN
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
@@ -180,6 +180,13 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'static'),
 ]
+
+# Local storage settings
+MEDIA_ROOT = os.path.join(BASE_DIR, 'storage')
+MEDIA_URL = '/media/'
+
+# Create storage directory if it doesn't exist
+os.makedirs(MEDIA_ROOT, exist_ok=True)
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

@@ -7,14 +7,13 @@ from typing import Dict, Optional, List
 from django.utils import timezone
 
 from app import config
-from custard_app.models import User, Company, Role, RoleType
+from niva_app.models import User, Role, RoleType, UserStatus
 
 from django.db import transaction
 from django.db.models import Q, QuerySet
 from django.conf import settings
 from django.core.signing import TimestampSigner, SignatureExpired, BadSignature
 
-from custard_app.models import User, Company, Role, RoleType
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
 logger = logging.getLogger(__name__)
@@ -37,7 +36,7 @@ def get_user(username: str = None, email: str = None) -> Optional[User]:
         return None
 
 
-def create_user(username: str, email: str, password: str, company: Company) -> User:
+def create_user(username: str, email: str, password: str, role: Role = None) -> User:
     """
     Create a new user.
 
@@ -45,7 +44,7 @@ def create_user(username: str, email: str, password: str, company: Company) -> U
         username (str): The username of the user.
         email (str): The email of the user.
         password (str): The password of the user.
-        company (Company): The company object.
+        role (Role): The role object.
 
     Returns:
         User: The created user object.
@@ -54,8 +53,8 @@ def create_user(username: str, email: str, password: str, company: Company) -> U
     user.set_password(password)
     user.username = username
     user.email = email
-    user.is_active = False
-    user.company = company
+    user.role = role
+    user.status = UserStatus.ACTIVE
     user.save()
     return user
 
@@ -116,14 +115,13 @@ class UserManagementService:
     @staticmethod
     @transaction.atomic
     def create_user(
-        *, creator: User, company: Company, email: str, password: str, role_type: str
+        *, creator: User, email: str, password: str, role_type: str
     ) -> User:
         """
-        Create a new user for the company (one user per company).
+        Create a new user.
 
         Parameters:
             creator (User): The admin user creating this user.
-            company (Company): The company the user belongs to.
             email (str): The email of the user.
             password (str): The password of the user.
             role_type (str): The role type (e.g., "admin" or "user").
@@ -141,8 +139,8 @@ class UserManagementService:
         role, _ = Role.objects.get_or_create(
             role_type=role_type,
             defaults={
-                "name": f"{company.name} {role_type}",
-                "description": f"{role_type} role for {company.name}",
+                "name": f"{role_type.title()}",
+                "description": f"{role_type.title()} role",
             },
         )
 
@@ -150,26 +148,22 @@ class UserManagementService:
         user = User.objects.create(
             email=email,
             username=email,
-            company=company,
             role=role,
-            is_active=True,
+            status=UserStatus.ACTIVE,
         )
         user.set_password(password)
         user.save()
         return user
 
     @staticmethod
-    def get_company_users(*, user: User) -> QuerySet:
+    def get_all_users() -> QuerySet:
         """
-        Get all users in the company (only one user per company in this scenario).
-
-        Parameters:
-            user (User): The user making the request.
+        Get all users.
 
         Returns:
-            QuerySet: A queryset containing the single user for the company.
+            QuerySet: A queryset containing all users.
         """
-        return User.objects.filter(company=user.company)
+        return User.objects.all()
 
     @staticmethod
     @transaction.atomic
@@ -194,8 +188,6 @@ class UserManagementService:
             raise PermissionDenied("Only admins can update users")
 
         user = User.objects.get(id=user_id)
-        if user.company != admin.company:
-            raise PermissionDenied("Cannot modify users from different companies")
 
         # Update role if changed
         if user.role.role_type != role_type:

@@ -1,5 +1,5 @@
 """
-Module: custard_app.api.authentication.exceptions
+Module: niva_app.api.authentication.exceptions
 
 This file contains custom exceptions for the authentication routes.
 The exceptions are used to handle errors that occur during the authentication process.

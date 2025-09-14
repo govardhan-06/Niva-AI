@@ -1,11 +1,3 @@
-"""
-Agent: agent_llm.py
-Purpose: Manages Pipecat flows for conversation logic and context.
-
-Pending Methods: 
-● prepare_context_for_call(daily_call): Prepares context for voice calls 
-● save_call_summary(daily_call, summary, transcript): Saves call summaries
-"""
 import logging
 from typing import Dict, Any, Optional, Tuple, Union
 from pydantic import BaseModel
@@ -20,1242 +12,608 @@ from pipecat_flows import (
 
 logger = logging.getLogger(__name__)
 
-# Result models for inbound customer service flow
-class CallTypeResult(BaseModel):
-    call_type: str
-    urgency: Optional[str] = None
-
-class CustomerInfoResult(BaseModel):
-    account_number: Optional[str] = None
-    customer_name: Optional[str] = None
-    phone_number: Optional[str] = None
+# Result models for student interview flow
+class StudentInfoResult(BaseModel):
+    student_name: str
     email: Optional[str] = None
+    phone: Optional[str] = None
+    program_interest: str
 
-class ComplaintResult(BaseModel):
-    complaint_category: str
-    severity: str
-    description: Optional[str] = None
+class AcademicBackgroundResult(BaseModel):
+    current_education_level: str
+    institution: Optional[str] = None
+    gpa: Optional[str] = None
+    graduation_year: Optional[str] = None
+    major: Optional[str] = None
 
-class InquiryResult(BaseModel):
-    inquiry_type: str
-    specific_question: Optional[str] = None
+class ProgramInterestResult(BaseModel):
+    program_choice: str
+    motivation: str
+    career_goals: Optional[str] = None
 
-class TechnicalIssueResult(BaseModel):
-    issue_category: str
-    device_type: Optional[str] = None
-    error_description: Optional[str] = None
+class ExperienceResult(BaseModel):
+    work_experience: Optional[str] = None
+    projects: Optional[str] = None
+    skills: Optional[str] = None
+    achievements: Optional[str] = None
 
-class ResolutionResult(BaseModel):
-    resolution_type: str
-    customer_satisfaction: Optional[str] = None
-    follow_up_needed: Optional[bool] = None
+class BehavioralAssessmentResult(BaseModel):
+    scenario_response: str
+    problem_solving_approach: Optional[str] = None
+    teamwork_example: Optional[str] = None
 
-class EscalationResult(BaseModel):
-    escalation_reason: str
-    department: str
-    notes: Optional[str] = None
+class InterviewSummaryResult(BaseModel):
+    overall_impression: str
+    strengths: str
+    areas_for_improvement: Optional[str] = None
+    recommendation: str
 
-class FollowUpResult(BaseModel):
-    follow_up_type: str
-    timeframe: Optional[str] = None
-    contact_method: Optional[str] = None
-
-# Handler functions for inbound customer service flow
-async def call_routing(
+# Handler functions for student interview flow
+async def interview_started(
     args: FlowArgs, 
     flow_manager: FlowManager
 ) -> Tuple[FlowResult, NodeConfig]:
-    """Route the call based on customer needs."""
-    call_type = args.get("call_type", "general")
-    urgency = args.get("urgency", "normal")
-    
-    flow_manager.state["call_type"] = call_type
-    flow_manager.state["urgency"] = urgency
-    flow_manager.state["call_start_time"] = time.time()
-    
-    result = {
-        "status": "success",
-        "call_type": call_type,
-        "urgency": urgency
-    }
-    
-    # Route to appropriate next node based on call type
-    if call_type == "complaint":
-        next_node = create_customer_info_collection_node()
-    elif call_type == "technical_support":
-        next_node = create_customer_info_collection_node()
-    elif call_type == "billing_inquiry":
-        next_node = create_customer_info_collection_node()
-    elif call_type == "general_inquiry":
-        next_node = create_general_inquiry_node()
-    elif call_type == "emergency":
-        next_node = create_emergency_handling_node()
-    else:
-        next_node = create_customer_info_collection_node()
-    
-    logger.info(f"✅ Call routed - Type: {call_type}, transitioning to: {next_node['name']}")
-    return result, next_node
-
-async def customer_info_collected(
-    args: FlowArgs, 
-    flow_manager: FlowManager
-) -> Tuple[FlowResult, NodeConfig]:
-    """Handle customer information collection."""
-    account_number = args.get("account_number")
-    customer_name = args.get("customer_name")
-    phone_number = args.get("phone_number")
+    """Start the interview and collect basic information."""
+    student_name = args.get("student_name")
     email = args.get("email")
+    phone = args.get("phone")
+    program_interest = args.get("program_interest")
     
-    customer_info = {
-        "account_number": account_number,
-        "customer_name": customer_name,
-        "phone_number": phone_number,
+    student_info = {
+        "name": student_name,
         "email": email,
-        "verified": True if account_number else False
+        "phone": phone,
+        "program_interest": program_interest,
+        "interview_start_time": time.time()
     }
     
-    flow_manager.state["customer_info"] = customer_info
-    flow_manager.state["info_collected_time"] = time.time()
+    flow_manager.state["student_info"] = student_info
     
     result = {
         "status": "success",
-        "customer_verified": customer_info["verified"],
-        **customer_info
+        "student_name": student_name,
+        "program_interest": program_interest
     }
     
-    # Route based on original call type
-    call_type = flow_manager.state.get("call_type", "general")
+    next_node = create_academic_background_node()
     
-    if call_type == "complaint":
-        next_node = create_complaint_handling_node()
-    elif call_type == "technical_support":
-        next_node = create_technical_support_node()
-    elif call_type == "billing_inquiry":
-        next_node = create_billing_inquiry_node()
-    else:
-        next_node = create_general_inquiry_node()
-    
-    logger.info(f"✅ Customer info collected, transitioning to: {next_node['name']}")
+    logger.info(f"✅ Interview started for {student_name}, program: {program_interest}")
     return result, next_node
 
-async def complaint_logged(
+async def academic_background_collected(
     args: FlowArgs, 
     flow_manager: FlowManager
 ) -> Tuple[FlowResult, NodeConfig]:
-    """Handle complaint logging."""
-    complaint_category = args.get("complaint_category", "other")
-    severity = args.get("severity", "medium")
-    description = args.get("description", "")
+    """Handle academic background information."""
+    education_level = args.get("current_education_level")
+    institution = args.get("institution")
+    gpa = args.get("gpa")
+    graduation_year = args.get("graduation_year")
+    major = args.get("major")
     
-    complaint_data = {
-        "category": complaint_category,
-        "severity": severity,
-        "description": description,
-        "logged_time": time.time()
+    academic_data = {
+        "education_level": education_level,
+        "institution": institution,
+        "gpa": gpa,
+        "graduation_year": graduation_year,
+        "major": major
     }
     
-    flow_manager.state["complaint"] = complaint_data
+    flow_manager.state["academic_background"] = academic_data
     
     result = {
         "status": "success",
-        "complaint_category": complaint_category,
-        "severity": severity,
-        "needs_immediate_action": severity in ["high", "critical"]
+        "education_level": education_level,
+        "strong_academic_record": gpa and float(gpa.replace("+", "")) >= 3.5 if gpa else False
     }
     
-    # Route based on severity and category
-    if severity in ["high", "critical"]:
-        next_node = create_escalation_node()
-    elif complaint_category in ["billing_error", "service_outage"]:
-        next_node = create_immediate_resolution_node()
-    else:
-        next_node = create_complaint_resolution_node()
+    next_node = create_program_interest_node()
     
-    logger.info(f"✅ Complaint logged - Category: {complaint_category}, Severity: {severity}")
+    logger.info(f"✅ Academic background collected - Level: {education_level}")
     return result, next_node
 
-async def inquiry_processed(
+async def program_interest_discussed(
     args: FlowArgs, 
     flow_manager: FlowManager
 ) -> Tuple[FlowResult, NodeConfig]:
-    """Handle general inquiry processing."""
-    inquiry_type = args.get("inquiry_type", "general")
-    specific_question = args.get("specific_question", "")
+    """Handle program interest and motivation discussion."""
+    program_choice = args.get("program_choice")
+    motivation = args.get("motivation")
+    career_goals = args.get("career_goals")
     
-    inquiry_data = {
-        "type": inquiry_type,
-        "question": specific_question,
-        "processed_time": time.time()
+    interest_data = {
+        "program_choice": program_choice,
+        "motivation": motivation,
+        "career_goals": career_goals
     }
     
-    flow_manager.state["inquiry"] = inquiry_data
+    flow_manager.state["program_interest"] = interest_data
     
     result = {
         "status": "success",
-        "inquiry_type": inquiry_type,
-        "can_provide_immediate_answer": inquiry_type in ["hours", "location", "services", "pricing"]
+        "program_choice": program_choice,
+        "clear_motivation": len(motivation) > 50 if motivation else False
     }
     
-    # Route based on inquiry complexity
-    if inquiry_type in ["hours", "location", "services", "pricing"]:
-        next_node = create_information_provision_node()
-    elif inquiry_type in ["account_status", "billing"]:
-        next_node = create_account_specific_inquiry_node()
-    else:
-        next_node = create_escalation_node()
+    next_node = create_experience_review_node()
     
-    logger.info(f"✅ Inquiry processed - Type: {inquiry_type}")
+    logger.info(f"✅ Program interest discussed - Choice: {program_choice}")
     return result, next_node
 
-async def technical_issue_diagnosed(
+async def experience_reviewed(
     args: FlowArgs, 
     flow_manager: FlowManager
 ) -> Tuple[FlowResult, NodeConfig]:
-    """Handle technical issue diagnosis."""
-    issue_category = args.get("issue_category", "other")
-    device_type = args.get("device_type")
-    error_description = args.get("error_description", "")
+    """Handle experience and skills review."""
+    work_experience = args.get("work_experience")
+    projects = args.get("projects")
+    skills = args.get("skills")
+    achievements = args.get("achievements")
     
-    technical_data = {
-        "category": issue_category,
-        "device": device_type,
-        "error": error_description,
-        "diagnosed_time": time.time()
+    experience_data = {
+        "work_experience": work_experience,
+        "projects": projects,
+        "skills": skills,
+        "achievements": achievements
     }
     
-    flow_manager.state["technical_issue"] = technical_data
+    flow_manager.state["experience"] = experience_data
     
     result = {
         "status": "success",
-        "issue_category": issue_category,
-        "can_resolve_remotely": issue_category in ["password_reset", "account_settings", "app_issue"]
+        "has_relevant_experience": bool(work_experience or projects),
+        "technical_skills": bool(skills)
     }
     
-    # Route based on issue complexity
-    if issue_category in ["password_reset", "account_settings", "app_issue"]:
-        next_node = create_technical_resolution_node()
-    elif issue_category in ["hardware_failure", "network_outage"]:
-        next_node = create_escalation_node()
-    else:
-        next_node = create_technical_troubleshooting_node()
+    next_node = create_behavioral_questions_node()
     
-    logger.info(f"✅ Technical issue diagnosed - Category: {issue_category}")
+    logger.info(f"✅ Experience reviewed")
     return result, next_node
 
-async def issue_resolved(
+async def behavioral_assessment_completed(
     args: FlowArgs, 
     flow_manager: FlowManager
 ) -> Tuple[FlowResult, NodeConfig]:
-    """Handle successful issue resolution."""
-    resolution_type = args.get("resolution_type", "standard")
-    customer_satisfaction = args.get("customer_satisfaction", "satisfied")
-    follow_up_needed = args.get("follow_up_needed", False)
+    """Handle behavioral assessment responses."""
+    scenario_response = args.get("scenario_response")
+    problem_solving = args.get("problem_solving_approach")
+    teamwork_example = args.get("teamwork_example")
     
-    resolution_data = {
-        "type": resolution_type,
-        "satisfaction": customer_satisfaction,
-        "follow_up": follow_up_needed,
-        "resolved_time": time.time()
+    behavioral_data = {
+        "scenario_response": scenario_response,
+        "problem_solving": problem_solving,
+        "teamwork_example": teamwork_example
     }
     
-    flow_manager.state["resolution"] = resolution_data
+    flow_manager.state["behavioral_assessment"] = behavioral_data
     
     result = {
         "status": "success",
-        "resolution_type": resolution_type,
-        "customer_satisfaction": customer_satisfaction,
-        "follow_up_needed": follow_up_needed
+        "good_problem_solving": len(scenario_response) > 100 if scenario_response else False,
+        "team_experience": bool(teamwork_example)
     }
     
-    if follow_up_needed:
-        next_node = create_follow_up_scheduling_node()
-    else:
-        next_node = create_call_completion_node()
+    next_node = create_student_questions_node()
     
-    logger.info(f"✅ Issue resolved - Type: {resolution_type}, Satisfaction: {customer_satisfaction}")
+    logger.info(f"✅ Behavioral assessment completed")
     return result, next_node
 
-async def escalation_required(
+async def student_questions_addressed(
     args: FlowArgs, 
     flow_manager: FlowManager
 ) -> Tuple[FlowResult, NodeConfig]:
-    """Handle escalation requirements."""
-    escalation_reason = args.get("escalation_reason", "complex_issue")
-    department = args.get("department", "supervisor")
-    notes = args.get("notes", "")
+    """Handle student's questions about the program."""
+    questions_asked = args.get("questions_asked", "")
+    questions_answered = args.get("questions_answered", True)
     
-    escalation_data = {
-        "reason": escalation_reason,
-        "department": department,
-        "notes": notes,
-        "escalated_time": time.time()
+    qa_data = {
+        "questions_asked": questions_asked,
+        "questions_answered": questions_answered
     }
     
-    flow_manager.state["escalation"] = escalation_data
+    flow_manager.state["student_questions"] = qa_data
     
     result = {
         "status": "success",
-        "escalation_reason": escalation_reason,
-        "department": department,
-        "immediate_transfer": escalation_reason in ["angry_customer", "legal_issue", "emergency"]
+        "engaged_student": bool(questions_asked),
+        "questions_answered": questions_answered
     }
     
-    if escalation_reason in ["angry_customer", "legal_issue", "emergency"]:
-        next_node = create_immediate_transfer_node()
-    else:
-        next_node = create_escalation_preparation_node()
+    next_node = create_interview_completion_node()
     
-    logger.info(f"✅ Escalation required - Reason: {escalation_reason}, Department: {department}")
+    logger.info(f"✅ Student questions addressed")
     return result, next_node
 
-async def follow_up_scheduled(
+async def save_interview_data(
     args: FlowArgs, 
     flow_manager: FlowManager
 ) -> Tuple[FlowResult, NodeConfig]:
-    """Handle follow-up scheduling."""
-    follow_up_type = args.get("follow_up_type", "standard")
-    timeframe = args.get("timeframe", "24_hours")
-    contact_method = args.get("contact_method", "phone")
+    """Save complete interview data and assessment."""
+    overall_impression = args.get("overall_impression", "positive")
+    strengths = args.get("strengths", "")
+    areas_for_improvement = args.get("areas_for_improvement", "")
+    recommendation = args.get("recommendation", "consider")
     
-    follow_up_data = {
-        "type": follow_up_type,
-        "timeframe": timeframe,
-        "contact_method": contact_method,
-        "scheduled_time": time.time()
-    }
-    
-    flow_manager.state["follow_up"] = follow_up_data
-    
-    result = {
-        "status": "success",
-        "follow_up_type": follow_up_type,
-        "timeframe": timeframe,
-        "contact_method": contact_method
-    }
-    
-    next_node = create_call_completion_node()
-    
-    logger.info(f"✅ Follow-up scheduled - Type: {follow_up_type}, Timeframe: {timeframe}")
-    return result, next_node
-
-async def emergency_handled(
-    args: FlowArgs, 
-    flow_manager: FlowManager
-) -> Tuple[FlowResult, NodeConfig]:
-    """Handle emergency situations."""
-    emergency_type = args.get("emergency_type", "general")
-    immediate_action = args.get("immediate_action", False)
-    
-    emergency_data = {
-        "type": emergency_type,
-        "immediate_action": immediate_action,
-        "handled_time": time.time()
-    }
-    
-    flow_manager.state["emergency"] = emergency_data
-    
-    result = {
-        "status": "success",
-        "emergency_type": emergency_type,
-        "immediate_action": immediate_action
-    }
-    
-    if immediate_action:
-        next_node = create_immediate_transfer_node()
-    else:
-        next_node = create_emergency_resolution_node()
-    
-    logger.info(f"✅ Emergency handled - Type: {emergency_type}")
-    return result, next_node
-
-async def save_interaction_data(
-    args: FlowArgs, 
-    flow_manager: FlowManager
-) -> Tuple[FlowResult, NodeConfig]:
-    """Save complete interaction data."""
-    interaction_summary = args.get("interaction_summary", "")
-    satisfaction_rating = args.get("satisfaction_rating", "neutral")
-    
-    # Compile all interaction data
-    interaction_data = {
+    # Compile all interview data
+    interview_data = {
         "timestamp": datetime.now().isoformat(),
-        "call_duration": time.time() - flow_manager.state.get("call_start_time", time.time()),
-        "customer_info": flow_manager.state.get("customer_info", {}),
-        "call_type": flow_manager.state.get("call_type", "unknown"),
-        "complaint": flow_manager.state.get("complaint"),
-        "inquiry": flow_manager.state.get("inquiry"),
-        "technical_issue": flow_manager.state.get("technical_issue"),
-        "resolution": flow_manager.state.get("resolution"),
-        "escalation": flow_manager.state.get("escalation"),
-        "follow_up": flow_manager.state.get("follow_up"),
-        "emergency": flow_manager.state.get("emergency"),
-        "interaction_summary": interaction_summary,
-        "satisfaction_rating": satisfaction_rating,
+        "interview_duration": time.time() - flow_manager.state.get("student_info", {}).get("interview_start_time", time.time()),
+        "student_info": flow_manager.state.get("student_info", {}),
+        "academic_background": flow_manager.state.get("academic_background", {}),
+        "program_interest": flow_manager.state.get("program_interest", {}),
+        "experience": flow_manager.state.get("experience", {}),
+        "behavioral_assessment": flow_manager.state.get("behavioral_assessment", {}),
+        "student_questions": flow_manager.state.get("student_questions", {}),
+        "interviewer_assessment": {
+            "overall_impression": overall_impression,
+            "strengths": strengths,
+            "areas_for_improvement": areas_for_improvement,
+            "recommendation": recommendation
+        },
         "flow_state": dict(flow_manager.state)
     }
     
     # Save to JSON file
     try:
         project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-        interactions_dir = os.path.join(project_root, "customer_interactions")
-        os.makedirs(interactions_dir, exist_ok=True)
+        interviews_dir = os.path.join(project_root, "student_interviews")
+        os.makedirs(interviews_dir, exist_ok=True)
         
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        customer_name = interaction_data["customer_info"].get("customer_name", "unknown")
-        safe_name = "".join(c for c in customer_name if c.isalnum() or c in (' ', '-', '_')).rstrip()
+        student_name = interview_data["student_info"].get("name", "unknown")
+        safe_name = "".join(c for c in student_name if c.isalnum() or c in (' ', '-', '_')).rstrip()
         safe_name = safe_name.replace(' ', '_')
         
-        filename = f"interaction_{safe_name}_{timestamp}.json"
-        filepath = os.path.join(interactions_dir, filename)
+        filename = f"interview_{safe_name}_{timestamp}.json"
+        filepath = os.path.join(interviews_dir, filename)
         
         with open(filepath, 'w', encoding='utf-8') as f:
-            json.dump(interaction_data, f, indent=2, ensure_ascii=False)
+            json.dump(interview_data, f, indent=2, ensure_ascii=False)
         
-        logger.info(f"✅ Interaction data saved to: {filepath}")
+        logger.info(f"✅ Interview data saved to: {filepath}")
         
     except Exception as e:
-        logger.error(f"❌ Failed to save interaction data: {str(e)}")
+        logger.error(f"❌ Failed to save interview data: {str(e)}")
         logger.exception("Full traceback:")
     
-    flow_manager.state["interaction_saved"] = True
+    flow_manager.state["interview_saved"] = True
     
     result = {
         "status": "success",
-        "interaction_summary": interaction_summary,
-        "satisfaction_rating": satisfaction_rating,
+        "overall_impression": overall_impression,
+        "recommendation": recommendation,
         "data_saved": True
     }
     
-    next_node = create_call_completion_node()
+    next_node = None  # End of flow
     
-    logger.info(f"✅ Interaction data saved")
+    logger.info(f"✅ Interview completed and data saved")
     return result, next_node
 
-# Node creation functions for inbound customer service flow
-def create_greeting_and_routing_node() -> NodeConfig:
-    """Create the initial greeting and call routing node."""
+# Node creation functions for student interview flow
+def create_welcome_and_intro_node() -> NodeConfig:
+    """Create the initial welcome and introduction node."""
     return NodeConfig(
-        name="greeting_and_routing",
+        name="welcome_and_intro",
         task_messages=[
             {
                 "role": "user",
-                "content": """Greet the customer professionally and warmly. Introduce yourself as a customer service representative and ask how you can help them today. 
+                "content": """Hello! Welcome to your admissions interview. I'm excited to learn more about you and your interest in our programs.
 
-Listen carefully to understand their needs and determine the type of call:
-- Complaint or issue to report
-- Technical support needed
-- Billing inquiry
-- General information request
-- Emergency situation
+This interview will take about 30-45 minutes. We'll discuss your background, academic experience, and goals. Feel free to ask questions throughout our conversation.
 
-Also assess the urgency level based on their tone and situation.""",
+Let's start with some basic information:
+- What's your full name?
+- What's your email address?
+- Phone number?
+- Which program are you most interested in?""",
             }
         ],
         functions=[
             FlowsFunctionSchema(
-                name="call_routing",
-                description="Route the call based on customer needs and urgency",
+                name="interview_started",
+                description="Basic student information collected",
                 properties={
-                    "call_type": {
+                    "student_name": {
                         "type": "string",
-                        "enum": ["complaint", "technical_support", "billing_inquiry", "general_inquiry", "emergency"]
-                    },
-                    "urgency": {
-                        "type": "string",
-                        "enum": ["low", "normal", "high", "critical"]
-                    }
-                },
-                required=["call_type"],
-                handler=call_routing,
-            )
-        ],
-    )
-
-def create_customer_info_collection_node() -> NodeConfig:
-    """Create customer information collection node."""
-    return NodeConfig(
-        name="customer_info_collection",
-        task_messages=[
-            {
-                "role": "user",
-                "content": """To better assist you, I'll need to collect some information. Please provide:
-
-1. Your account number (if applicable)
-2. Your full name
-3. Phone number on file
-4. Email address (optional)
-
-This helps me verify your account and provide personalized assistance.""",
-            }
-        ],
-        functions=[
-            FlowsFunctionSchema(
-                name="customer_info_collected",
-                description="Customer information has been collected",
-                properties={
-                    "account_number": {
-                        "type": "string",
-                        "description": "Customer's account number"
-                    },
-                    "customer_name": {
-                        "type": "string",
-                        "description": "Customer's full name"
-                    },
-                    "phone_number": {
-                        "type": "string",
-                        "description": "Customer's phone number"
+                        "description": "Student's full name"
                     },
                     "email": {
                         "type": "string",
-                        "description": "Customer's email address"
+                        "description": "Student's email address"
+                    },
+                    "phone": {
+                        "type": "string",
+                        "description": "Student's phone number"
+                    },
+                    "program_interest": {
+                        "type": "string",
+                        "description": "Program the student is interested in"
                     }
                 },
-                required=["customer_name"],
-                handler=customer_info_collected,
+                required=["student_name", "program_interest"],
+                handler=interview_started,
             )
         ],
     )
 
-def create_complaint_handling_node() -> NodeConfig:
-    """Create complaint handling node."""
+def create_academic_background_node() -> NodeConfig:
+    """Create academic background collection node."""
     return NodeConfig(
-        name="complaint_handling",
+        name="academic_background",
         task_messages=[
             {
                 "role": "user",
-                "content": """I understand you have a complaint or issue to report. I'm here to help resolve this for you.
+                "content": """Great! Now let's talk about your academic background.
+
+Please tell me about:
+1. What's your current education level? (high school, undergraduate, graduate, etc.)
+2. Which school/institution are you currently at or did you graduate from?
+3. What's your GPA or academic standing?
+4. When do you graduate or when did you graduate?
+5. What's your major or area of study?""",
+            }
+        ],
+        functions=[
+            FlowsFunctionSchema(
+                name="academic_background_collected",
+                description="Academic background information collected",
+                properties={
+                    "current_education_level": {
+                        "type": "string",
+                        "enum": ["high_school", "undergraduate", "graduate", "postgraduate", "working_professional"]
+                    },
+                    "institution": {
+                        "type": "string",
+                        "description": "Name of current or previous institution"
+                    },
+                    "gpa": {
+                        "type": "string",
+                        "description": "GPA or academic standing"
+                    },
+                    "graduation_year": {
+                        "type": "string",
+                        "description": "Expected or actual graduation year"
+                    },
+                    "major": {
+                        "type": "string",
+                        "description": "Major or field of study"
+                    }
+                },
+                required=["current_education_level"],
+                handler=academic_background_collected,
+            )
+        ],
+    )
+
+def create_program_interest_node() -> NodeConfig:
+    """Create program interest discussion node."""
+    return NodeConfig(
+        name="program_interest",
+        task_messages=[
+            {
+                "role": "user",
+                "content": """Now I'd like to understand your interest in our program better.
 
 Please tell me:
-1. What specific issue are you experiencing?
-2. When did this problem start?
-3. How has this affected you?
+1. Why are you specifically interested in this program?
+2. What motivated you to apply?
+3. What are your career goals after completing this program?
+4. How does this program align with your long-term objectives?
 
-I'll categorize your complaint and determine the best way to resolve it.""",
+Take your time to give me a thoughtful response.""",
             }
         ],
         functions=[
             FlowsFunctionSchema(
-                name="complaint_logged",
-                description="Complaint has been documented",
+                name="program_interest_discussed",
+                description="Program interest and motivation discussed",
                 properties={
-                    "complaint_category": {
+                    "program_choice": {
                         "type": "string",
-                        "enum": ["service_quality", "billing_error", "technical_issue", "staff_behavior", "service_outage", "other"]
+                        "description": "Specific program the student chose"
                     },
-                    "severity": {
+                    "motivation": {
                         "type": "string",
-                        "enum": ["low", "medium", "high", "critical"]
+                        "description": "Why the student is interested in this program"
                     },
-                    "description": {
+                    "career_goals": {
                         "type": "string",
-                        "description": "Detailed description of the complaint"
+                        "description": "Student's career goals and aspirations"
                     }
                 },
-                required=["complaint_category", "severity"],
-                handler=complaint_logged,
+                required=["program_choice", "motivation"],
+                handler=program_interest_discussed,
             )
         ],
     )
 
-def create_general_inquiry_node() -> NodeConfig:
-    """Create general inquiry handling node."""
+def create_experience_review_node() -> NodeConfig:
+    """Create experience and skills review node."""
     return NodeConfig(
-        name="general_inquiry",
+        name="experience_review",
         task_messages=[
             {
                 "role": "user",
-                "content": """I'd be happy to help with your inquiry. Please tell me what information you're looking for.
+                "content": """Let's talk about your experience and skills.
 
-Common inquiries include:
-- Business hours and locations
-- Services offered
-- Pricing information
-- Account status
-- General policies
+Please share:
+1. Any work experience you have (internships, part-time jobs, full-time work)
+2. Projects you've worked on (academic, personal, or professional)
+3. Technical or other relevant skills you've developed
+4. Any achievements or accomplishments you're proud of
 
-What specific question can I answer for you?""",
+Don't worry if you don't have extensive experience - we value potential and enthusiasm too!""",
             }
         ],
         functions=[
             FlowsFunctionSchema(
-                name="inquiry_processed",
-                description="Customer inquiry has been understood",
+                name="experience_reviewed",
+                description="Experience and skills information collected",
                 properties={
-                    "inquiry_type": {
+                    "work_experience": {
                         "type": "string",
-                        "enum": ["hours", "location", "services", "pricing", "account_status", "billing", "policies", "other"]
+                        "description": "Student's work experience"
                     },
-                    "specific_question": {
+                    "projects": {
                         "type": "string",
-                        "description": "The specific question asked"
+                        "description": "Projects the student has worked on"
+                    },
+                    "skills": {
+                        "type": "string",
+                        "description": "Technical and other relevant skills"
+                    },
+                    "achievements": {
+                        "type": "string",
+                        "description": "Notable achievements or accomplishments"
                     }
                 },
-                required=["inquiry_type"],
-                handler=inquiry_processed,
+                required=[],
+                handler=experience_reviewed,
             )
         ],
     )
 
-def create_technical_support_node() -> NodeConfig:
-    """Create technical support node."""
+def create_behavioral_questions_node() -> NodeConfig:
+    """Create behavioral questions node."""
     return NodeConfig(
-        name="technical_support",
+        name="behavioral_questions",
         task_messages=[
             {
                 "role": "user",
-                "content": """I'll help you with your technical issue. To better assist you, please provide:
+                "content": """Now I'd like to ask you some scenario-based questions to understand how you approach challenges.
 
-1. What device or service are you having trouble with?
-2. What exactly is happening? (error messages, symptoms)
-3. When did this problem start?
-4. Have you tried any troubleshooting steps already?
+Here's a situation: "Imagine you're working on a team project with a tight deadline, but one team member isn't contributing their fair share. How would you handle this situation?"
 
-This will help me diagnose the issue and find the best solution.""",
+Also, please tell me:
+1. Describe your approach to solving complex problems
+2. Give me an example of a time you worked effectively in a team
+
+Take your time to think through your responses.""",
             }
         ],
         functions=[
             FlowsFunctionSchema(
-                name="technical_issue_diagnosed",
-                description="Technical issue has been diagnosed",
+                name="behavioral_assessment_completed",
+                description="Behavioral questions answered",
                 properties={
-                    "issue_category": {
+                    "scenario_response": {
                         "type": "string",
-                        "enum": ["password_reset", "account_settings", "app_issue", "connectivity", "hardware_failure", "network_outage", "other"]
+                        "description": "Response to the team scenario question"
                     },
-                    "device_type": {
+                    "problem_solving_approach": {
                         "type": "string",
-                        "description": "Type of device experiencing issues"
+                        "description": "How the student approaches problem-solving"
                     },
-                    "error_description": {
+                    "teamwork_example": {
                         "type": "string",
-                        "description": "Description of the error or problem"
+                        "description": "Example of effective teamwork"
                     }
                 },
-                required=["issue_category"],
-                handler=technical_issue_diagnosed,
+                required=["scenario_response"],
+                handler=behavioral_assessment_completed,
             )
         ],
     )
 
-def create_billing_inquiry_node() -> NodeConfig:
-    """Create billing inquiry node."""
+def create_student_questions_node() -> NodeConfig:
+    """Create student questions node."""
     return NodeConfig(
-        name="billing_inquiry",
+        name="student_questions",
         task_messages=[
             {
                 "role": "user",
-                "content": """I can help you with your billing question. Common billing inquiries include:
+                "content": """Now it's your turn! Do you have any questions about:
+- The program curriculum or structure
+- Faculty and research opportunities
+- Student life and campus resources
+- Career services and job placement
+- Application process and timeline
+- Anything else about the program or institution
 
-- Explaining charges on your bill
-- Payment options and due dates
-- Billing cycles and statements
-- Account balance questions
-- Payment history
-
-What specific billing question do you have?""",
+I'm here to help clarify anything you'd like to know.""",
             }
         ],
         functions=[
             FlowsFunctionSchema(
-                name="inquiry_processed",
-                description="Billing inquiry processed",
+                name="student_questions_addressed",
+                description="Student's questions have been addressed",
                 properties={
-                    "inquiry_type": {
+                    "questions_asked": {
                         "type": "string",
-                        "enum": ["bill_explanation", "payment_options", "account_balance", "payment_history", "billing_error", "other"]
+                        "description": "Questions the student asked"
                     },
-                    "specific_question": {
-                        "type": "string",
-                        "description": "Specific billing question"
-                    }
-                },
-                required=["inquiry_type"],
-                handler=inquiry_processed,
-            )
-        ],
-    )
-
-def create_immediate_resolution_node() -> NodeConfig:
-    """Create immediate resolution node."""
-    return NodeConfig(
-        name="immediate_resolution",
-        task_messages=[
-            {
-                "role": "user",
-                "content": """I can resolve this issue for you right now. Let me take care of this immediately.
-
-[Provide the resolution steps or solution based on the issue type]
-
-Is this resolution satisfactory? Do you have any other questions?""",
-            }
-        ],
-        functions=[
-            FlowsFunctionSchema(
-                name="issue_resolved",
-                description="Issue has been resolved successfully",
-                properties={
-                    "resolution_type": {
-                        "type": "string",
-                        "enum": ["immediate_fix", "account_adjustment", "service_reset", "information_provided"]
-                    },
-                    "customer_satisfaction": {
-                        "type": "string",
-                        "enum": ["very_satisfied", "satisfied", "neutral", "dissatisfied"]
-                    },
-                    "follow_up_needed": {
+                    "questions_answered": {
                         "type": "boolean",
-                        "description": "Whether follow-up is needed"
+                        "description": "Whether the questions were satisfactorily answered"
                     }
                 },
-                required=["resolution_type", "customer_satisfaction"],
-                handler=issue_resolved,
+                required=["questions_answered"],
+                handler=student_questions_addressed,
             )
         ],
     )
 
-def create_complaint_resolution_node() -> NodeConfig:
-    """Create complaint resolution node."""
+def create_interview_completion_node() -> NodeConfig:
+    """Create interview completion and assessment node."""
     return NodeConfig(
-        name="complaint_resolution",
+        name="interview_completion",
         task_messages=[
             {
                 "role": "user",
-                "content": """I understand your frustration and I'm committed to resolving this complaint for you.
+                "content": """Thank you for taking the time to interview with us today. You've shared some great insights about yourself and your goals.
 
-Here's what I can do to address your concern:
-[Provide specific resolution steps based on complaint type]
+Before we wrap up, let me provide you with next steps:
+- We'll review your application and interview
+- You should hear back from us within [timeframe]
+- Feel free to reach out if you have additional questions
 
-I want to make sure you're completely satisfied with how we handle this. How does this resolution sound to you?""",
+Based on our conversation today, I'd like to complete my assessment of the interview. Thank you again for your time!""",
             }
         ],
         functions=[
             FlowsFunctionSchema(
-                name="issue_resolved",
-                description="Complaint has been resolved",
+                name="save_interview_data",
+                description="Complete interview assessment and save data",
                 properties={
-                    "resolution_type": {
+                    "overall_impression": {
                         "type": "string",
-                        "enum": ["policy_exception", "refund_credit", "service_improvement", "escalation_avoided"]
+                        "enum": ["excellent", "very_good", "good", "fair", "needs_improvement"]
                     },
-                    "customer_satisfaction": {
+                    "strengths": {
                         "type": "string",
-                        "enum": ["very_satisfied", "satisfied", "neutral", "dissatisfied"]
+                        "description": "Key strengths observed during the interview"
                     },
-                    "follow_up_needed": {
-                        "type": "boolean"
+                    "areas_for_improvement": {
+                        "type": "string",
+                        "description": "Areas where the student could improve"
+                    },
+                    "recommendation": {
+                        "type": "string",
+                        "enum": ["strong_recommend", "recommend", "consider", "do_not_recommend"]
                     }
                 },
-                required=["resolution_type", "customer_satisfaction"],
-                handler=issue_resolved,
-            ),
-            FlowsFunctionSchema(
-                name="escalation_required",
-                description="Customer not satisfied, escalation needed",
-                properties={
-                    "escalation_reason": {
-                        "type": "string",
-                        "enum": ["unsatisfied_customer", "policy_limitation", "authorization_needed"]
-                    },
-                    "department": {
-                        "type": "string",
-                        "enum": ["supervisor", "billing_department", "technical_department", "management"]
-                    },
-                    "notes": {
-                        "type": "string",
-                        "description": "Notes for escalation"
-                    }
-                },
-                required=["escalation_reason", "department"],
-                handler=escalation_required,
-            )
-        ],
-    )
-
-def create_technical_resolution_node() -> NodeConfig:
-    """Create technical resolution node."""
-    return NodeConfig(
-        name="technical_resolution",
-        task_messages=[
-            {
-                "role": "user",
-                "content": """I can help you resolve this technical issue. Let me walk you through the solution step by step:
-
-[Provide specific technical resolution steps]
-
-Please follow along and let me know if each step works for you. I'll make sure we get this completely resolved.""",
-            }
-        ],
-        functions=[
-            FlowsFunctionSchema(
-                name="issue_resolved",
-                description="Technical issue resolved successfully",
-                properties={
-                    "resolution_type": {
-                        "type": "string",
-                        "enum": ["guided_troubleshooting", "remote_fix", "account_reset", "configuration_change"]
-                    },
-                    "customer_satisfaction": {
-                        "type": "string",
-                        "enum": ["very_satisfied", "satisfied", "neutral", "dissatisfied"]
-                    },
-                    "follow_up_needed": {
-                        "type": "boolean"
-                    }
-                },
-                required=["resolution_type", "customer_satisfaction"],
-                handler=issue_resolved,
-            ),
-            FlowsFunctionSchema(
-                name="escalation_required",
-                description="Issue requires technical escalation",
-                properties={
-                    "escalation_reason": {
-                        "type": "string",
-                        "enum": ["complex_technical_issue", "hardware_replacement_needed", "system_level_problem"]
-                    },
-                    "department": {
-                        "type": "string",
-                        "enum": ["technical_specialist", "field_service", "engineering"]
-                    },
-                    "notes": {
-                        "type": "string"
-                    }
-                },
-                required=["escalation_reason", "department"],
-                handler=escalation_required,
-            )
-        ],
-    )
-
-def create_technical_troubleshooting_node() -> NodeConfig:
-    """Create technical troubleshooting node."""
-    return NodeConfig(
-        name="technical_troubleshooting",
-        task_messages=[
-            {
-                "role": "user",
-                "content": """Let's troubleshoot this issue together. I'll guide you through some diagnostic steps to identify the problem.
-
-First, let's try these basic troubleshooting steps:
-[Provide troubleshooting steps based on issue type]
-
-Please try these steps and let me know what happens.""",
-            }
-        ],
-        functions=[
-            FlowsFunctionSchema(
-                name="issue_resolved",
-                description="Troubleshooting successful, issue resolved",
-                properties={
-                    "resolution_type": {
-                        "type": "string",
-                        "enum": ["troubleshooting_successful", "setting_adjustment", "restart_fixed"]
-                    },
-                    "customer_satisfaction": {
-                        "type": "string",
-                        "enum": ["very_satisfied", "satisfied", "neutral", "dissatisfied"]
-                    },
-                    "follow_up_needed": {
-                        "type": "boolean"
-                    }
-                },
-                required=["resolution_type", "customer_satisfaction"],
-                handler=issue_resolved,
-            ),
-            FlowsFunctionSchema(
-                name="escalation_required",
-                description="Troubleshooting unsuccessful, escalation needed",
-                properties={
-                    "escalation_reason": {
-                        "type": "string",
-                        "enum": ["troubleshooting_failed", "hardware_issue", "advanced_technical_support_needed"]
-                    },
-                    "department": {
-                        "type": "string",
-                        "enum": ["technical_specialist", "field_service", "level_2_support"]
-                    },
-                    "notes": {
-                        "type": "string"
-                    }
-                },
-                required=["escalation_reason", "department"],
-                handler=escalation_required,
-            )
-        ],
-    )
-
-def create_information_provision_node() -> NodeConfig:
-    """Create information provision node."""
-    return NodeConfig(
-        name="information_provision",
-        task_messages=[
-            {
-                "role": "user",
-                "content": """I'd be happy to provide that information for you.
-
-[Provide the requested information based on inquiry type]
-
-Is there anything else you'd like to know about our services or policies?""",
-            }
-        ],
-        functions=[
-            FlowsFunctionSchema(
-                name="issue_resolved",
-                description="Information provided successfully",
-                properties={
-                    "resolution_type": {
-                        "type": "string",
-                        "enum": ["information_provided", "question_answered", "clarification_given"]
-                    },
-                    "customer_satisfaction": {
-                        "type": "string",
-                        "enum": ["very_satisfied", "satisfied", "neutral", "dissatisfied"]
-                    },
-                    "follow_up_needed": {
-                        "type": "boolean"
-                    }
-                },
-                required=["resolution_type", "customer_satisfaction"],
-                handler=issue_resolved,
-            )
-        ],
-    )
-
-def create_account_specific_inquiry_node() -> NodeConfig:
-    """Create account-specific inquiry node."""
-    return NodeConfig(
-        name="account_specific_inquiry",
-        task_messages=[
-            {
-                "role": "user",
-                "content": """Let me look up your account information to answer your question.
-
-[Provide account-specific information based on customer data]
-
-I can see your account details here. Is this information helpful? Do you have any other account-related questions?""",
-            }
-        ],
-        functions=[
-            FlowsFunctionSchema(
-                name="issue_resolved",
-                description="Account inquiry resolved",
-                properties={
-                    "resolution_type": {
-                        "type": "string",
-                        "enum": ["account_info_provided", "status_explained", "history_reviewed"]
-                    },
-                    "customer_satisfaction": {
-                        "type": "string",
-                        "enum": ["very_satisfied", "satisfied", "neutral", "dissatisfied"]
-                    },
-                    "follow_up_needed": {
-                        "type": "boolean"
-                    }
-                },
-                required=["resolution_type", "customer_satisfaction"],
-                handler=issue_resolved,
-            )
-        ],
-    )
-
-def create_escalation_node() -> NodeConfig:
-    """Create escalation node."""
-    return NodeConfig(
-        name="escalation",
-        task_messages=[
-            {
-                "role": "user",
-                "content": """I understand this situation requires additional attention. Let me escalate this to the appropriate department for you.
-
-I'm going to transfer you to [Department] who can provide specialized assistance with this matter. I'll make sure they have all the details of our conversation.
-
-Is there anything else you'd like me to note before I transfer you?""",
-            }
-        ],
-        functions=[
-            FlowsFunctionSchema(
-                name="escalation_required",
-                description="Escalation details confirmed",
-                properties={
-                    "escalation_reason": {
-                        "type": "string",
-                        "enum": ["requires_specialist", "policy_exception_needed", "complex_issue", "customer_request"]
-                    },
-                    "department": {
-                        "type": "string",
-                        "enum": ["supervisor", "billing_specialist", "technical_specialist", "management", "legal"]
-                    },
-                    "notes": {
-                        "type": "string",
-                        "description": "Additional notes for the escalation"
-                    }
-                },
-                required=["escalation_reason", "department"],
-                handler=escalation_required,
-            )
-        ],
-    )
-
-def create_escalation_preparation_node() -> NodeConfig:
-    """Create escalation preparation node."""
-    return NodeConfig(
-        name="escalation_preparation",
-        task_messages=[
-            {
-                "role": "user",
-                "content": """I'm preparing your case for escalation to ensure you get the best possible assistance.
-
-Let me summarize what we've discussed and prepare a complete case file for the specialist. This will help them assist you more efficiently.
-
-The specialist will contact you within [timeframe]. Is the phone number we have on file the best way to reach you?""",
-            }
-        ],
-        functions=[
-            FlowsFunctionSchema(
-                name="follow_up_scheduled",
-                description="Escalation follow-up scheduled",
-                properties={
-                    "follow_up_type": {
-                        "type": "string",
-                        "enum": ["specialist_callback", "department_transfer", "management_review"]
-                    },
-                    "timeframe": {
-                        "type": "string",
-                        "enum": ["within_hour", "same_day", "24_hours", "48_hours"]
-                    },
-                    "contact_method": {
-                        "type": "string",
-                        "enum": ["phone", "email", "both"]
-                    }
-                },
-                required=["follow_up_type", "timeframe"],
-                handler=follow_up_scheduled,
-            )
-        ],
-    )
-
-def create_immediate_transfer_node() -> NodeConfig:
-    """Create immediate transfer node."""
-    return NodeConfig(
-        name="immediate_transfer",
-        task_messages=[
-            {
-                "role": "user",
-                "content": """I'm transferring you immediately to the appropriate department. Please hold while I connect you.
-
-[Initiate immediate transfer to the designated department]
-
-Thank you for holding. I'm connecting you now.""",
-            }
-        ],
-        functions=[
-            FlowsFunctionSchema(
-                name="escalation_required",
-                description="Immediate transfer completed",
-                properties={
-                    "escalation_reason": {
-                        "type": "string",
-                        "enum": ["emergency_transfer", "immediate_specialist_needed", "urgent_situation"]
-                    },
-                    "department": {
-                        "type": "string",
-                        "enum": ["emergency_services", "supervisor", "security", "management"]
-                    },
-                    "notes": {
-                        "type": "string"
-                    }
-                },
-                required=["escalation_reason", "department"],
-                handler=escalation_required,
-            )
-        ],
-    )
-
-def create_emergency_handling_node() -> NodeConfig:
-    """Create emergency handling node."""
-    return NodeConfig(
-        name="emergency_handling",
-        task_messages=[
-            {
-                "role": "user",
-                "content": """I understand this is an emergency situation. Let me help you immediately.
-
-For life-threatening emergencies, please call 911.
-
-For service emergencies, I can:
-- Connect you to our emergency response team
-- Escalate to management immediately
-- Provide emergency contact information
-
-What type of emergency assistance do you need?""",
-            }
-        ],
-        functions=[
-            FlowsFunctionSchema(
-                name="emergency_handled",
-                description="Emergency situation assessed",
-                properties={
-                    "emergency_type": {
-                        "type": "string",
-                        "enum": ["service_outage", "safety_concern", "security_issue", "urgent_technical", "other"]
-                    },
-                    "immediate_action": {
-                        "type": "boolean",
-                        "description": "Whether immediate action/transfer is required"
-                    }
-                },
-                required=["emergency_type", "immediate_action"],
-                handler=emergency_handled,
-            )
-        ],
-    )
-
-def create_emergency_resolution_node() -> NodeConfig:
-    """Create emergency resolution node."""
-    return NodeConfig(
-        name="emergency_resolution",
-        task_messages=[
-            {
-                "role": "user",
-                "content": """I'm taking immediate action on your emergency situation.
-
-[Provide emergency-specific resolution steps]
-
-I've initiated the emergency protocol for your situation. You should receive immediate attention within the next few minutes.
-
-Is there anything else urgent I can help you with right now?""",
-            }
-        ],
-        functions=[
-            FlowsFunctionSchema(
-                name="issue_resolved",
-                description="Emergency situation resolved",
-                properties={
-                    "resolution_type": {
-                        "type": "string",
-                        "enum": ["emergency_protocol_initiated", "immediate_service_restored", "emergency_contact_provided"]
-                    },
-                    "customer_satisfaction": {
-                        "type": "string",
-                        "enum": ["very_satisfied", "satisfied", "neutral", "dissatisfied"]
-                    },
-                    "follow_up_needed": {
-                        "type": "boolean"
-                    }
-                },
-                required=["resolution_type"],
-                handler=issue_resolved,
-            )
-        ],
-    )
-
-def create_follow_up_scheduling_node() -> NodeConfig:
-    """Create follow-up scheduling node."""
-    return NodeConfig(
-        name="follow_up_scheduling",
-        task_messages=[
-            {
-                "role": "user",
-                "content": """I'd like to schedule a follow-up to ensure everything continues to work well for you.
-
-When would be a convenient time for us to check in with you?
-- Within 24 hours
-- In 2-3 days  
-- Next week
-- You'll contact us if needed
-
-What's the best way to reach you for follow-up?""",
-            }
-        ],
-        functions=[
-            FlowsFunctionSchema(
-                name="follow_up_scheduled",
-                description="Follow-up has been scheduled",
-                properties={
-                    "follow_up_type": {
-                        "type": "string",
-                        "enum": ["satisfaction_check", "technical_verification", "service_confirmation", "proactive_support"]
-                    },
-                    "timeframe": {
-                        "type": "string",
-                        "enum": ["24_hours", "2_3_days", "one_week", "customer_initiated"]
-                    },
-                    "contact_method": {
-                        "type": "string",
-                        "enum": ["phone", "email", "text", "customer_preference"]
-                    }
-                },
-                required=["follow_up_type", "timeframe"],
-                handler=follow_up_scheduled,
-            )
-        ],
-    )
-
-def create_call_completion_node() -> NodeConfig:
-    """Create call completion node."""
-    return NodeConfig(
-        name="call_completion",
-        task_messages=[
-            {
-                "role": "user",
-                "content": """Before we end our call, let me make sure I've addressed everything:
-
-1. Have I completely resolved your [issue/question]?
-2. Do you have any other questions or concerns?
-3. Is there anything else I can help you with today?
-
-Thank you for contacting us. We appreciate your business and hope you have a great day!
-
-Please take a moment to rate your satisfaction with today's service if you'd like.""",
-            }
-        ],
-        functions=[
-            FlowsFunctionSchema(
-                name="save_interaction_data",
-                description="Save the complete interaction summary",
-                properties={
-                    "interaction_summary": {
-                        "type": "string",
-                        "description": "Brief summary of the interaction and resolution"
-                    },
-                    "satisfaction_rating": {
-                        "type": "string",
-                        "enum": ["very_satisfied", "satisfied", "neutral", "dissatisfied", "very_dissatisfied", "not_provided"]
-                    }
-                },
-                required=["interaction_summary"],
-                handler=save_interaction_data,
+                required=["overall_impression", "strengths", "recommendation"],
+                handler=save_interview_data,
             )
         ],
     )
 
 def get_inbound_flow_config() -> Dict[str, Any]:
-    """Get the inbound customer service flow configuration."""
+    """Get the student interview flow configuration."""
     return {
-        "initial_node": "greeting_and_routing",
+        "initial_node": "welcome_and_intro",
         "turn_manager": {
             "type": "basic",
-            "timeout": 45
+            "timeout": 60
         },
         "nodes": {
-            "greeting_and_routing": create_greeting_and_routing_node(),
-            "customer_info_collection": create_customer_info_collection_node(),
-            "complaint_handling": create_complaint_handling_node(),
-            "general_inquiry": create_general_inquiry_node(),
-            "technical_support": create_technical_support_node(),
-            "billing_inquiry": create_billing_inquiry_node(),
-            "immediate_resolution": create_immediate_resolution_node(),
-            "complaint_resolution": create_complaint_resolution_node(),
-            "technical_resolution": create_technical_resolution_node(),
-            "technical_troubleshooting": create_technical_troubleshooting_node(),
-            "information_provision": create_information_provision_node(),
-            "account_specific_inquiry": create_account_specific_inquiry_node(),
-            "escalation": create_escalation_node(),
-            "escalation_preparation": create_escalation_preparation_node(),
-            "immediate_transfer": create_immediate_transfer_node(),
-            "emergency_handling": create_emergency_handling_node(),
-            "emergency_resolution": create_emergency_resolution_node(),
-            "follow_up_scheduling": create_follow_up_scheduling_node(),
-            "call_completion": create_call_completion_node(),
+            "welcome_and_intro": create_welcome_and_intro_node(),
+            "academic_background": create_academic_background_node(),
+            "program_interest": create_program_interest_node(),
+            "experience_review": create_experience_review_node(),
+            "behavioral_questions": create_behavioral_questions_node(),
+            "student_questions": create_student_questions_node(),
+            "interview_completion": create_interview_completion_node(),
         }
     }
