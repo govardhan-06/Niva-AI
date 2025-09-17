@@ -8,7 +8,8 @@ from pipecat_agents.services.inbound_flow_service import (
 )
 from pipecat.services.deepgram.stt import DeepgramSTTService
 from deepgram import LiveOptions
-from pipecat.services.aws import AWSPollyTTSService
+# from pipecat.services.aws import AWSPollyTTSService
+from pipecat.services.deepgram.tts import DeepgramTTSService
 from pipecat.transcriptions.language import Language
 
 from app import config
@@ -143,19 +144,21 @@ async def get_inbound_agent_context(course_id: str, agent_id: str) -> str:
 
 def get_language_config(agent_language: str):
     """
-    Get language-specific configuration for Deepgram STT, AWS Polly TTS, and LLM services
+    Get language-specific configuration for Deepgram STT, Deepgram TTS, and LLM services
     """
     language_map = {
         'en': {
             'stt_language': Language.EN_US,
             'tts_language': Language.EN,
-            'tts_voice_id': 'Joanna',  # AWS Polly voice
+            # 'tts_voice_id': 'Joanna',  # AWS Polly voice
+            'tts_voice_id': 'aura-2-helena-en',  # Deepgram voice
             'llm_language': 'en'
         },
         'hi': {
             'stt_language': Language.HI_IN,
             'tts_language': Language.HI,
-            'tts_voice_id': 'Aditi',  # AWS Polly Hindi voice
+            # 'tts_voice_id': 'Aditi',  # AWS Polly Hindi voice
+            'tts_voice_id': 'aura-2-andromeda-en',  # Note: Deepgram has limited Hindi voices
             'llm_language': 'hi'
         },
     }
@@ -164,7 +167,7 @@ def get_language_config(agent_language: str):
 
 async def configure_language_services(agent_id: str):
     """
-    Configure Deepgram STT and AWS Polly TTS services based on agent's language
+    Configure Deepgram STT and Deepgram TTS services based on agent's language
     """
     try:
         # Get agent's language
@@ -183,20 +186,27 @@ async def configure_language_services(agent_id: str):
                 smart_format=True,
                 punctuate=True,
                 profanity_filter=True,
-                vad_events=False, 
+                vad_events=False,
             )
         )
-        
+
         # Configure AWS Polly TTS
-        tts = AWSPollyTTSService(
-            aws_access_key_id=config.AWS_ACCESS_KEY_ID,
-            api_key=config.AWS_SECRET_ACCESS_KEY,
-            region=config.AWS_REGION,
-            voice_id=lang_config['tts_voice_id'],
-            params=AWSPollyTTSService.InputParams(
-                language=lang_config['tts_language'],
-                engine="neural" 
-            )
+        # tts = AWSPollyTTSService(
+        #     aws_access_key_id=config.AWS_ACCESS_KEY_ID,
+        #     api_key=config.AWS_SECRET_ACCESS_KEY,
+        #     region=config.AWS_REGION,
+        #     voice_id=lang_config['tts_voice_id'],
+        #     params=AWSPollyTTSService.InputParams(
+        #         language=lang_config['tts_language'],
+        #         engine="neural" 
+        # )
+
+        # Configure Deepgram TTS
+        tts = DeepgramTTSService(
+            api_key=config.DEEPGRAM_STT_KEY,  
+            voice=lang_config['tts_voice_id'],
+            sample_rate=24000,
+            encoding="linear16"
         )
         
         return stt, tts

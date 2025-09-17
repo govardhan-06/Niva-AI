@@ -29,6 +29,7 @@ class EntrypointVoiceAPI(APIView):
     class InputSerializer(serializers.Serializer):
         course_id = serializers.UUIDField()
         agent_id = serializers.UUIDField(required=False)
+        student_id = serializers.UUIDField(required=False)
     
     def post(self, request, *args, **kwargs):
         """
@@ -55,9 +56,10 @@ class EntrypointVoiceAPI(APIView):
             
             course_id = str(data['course_id'])
             agent_id = str(data['agent_id']) if data.get('agent_id') else None
+            student_id = str(data['student_id']) if data.get('student_id') else None
             
             # Process call asynchronously
-            result = self._process_inbound_call_async(twilio_data, course_id, agent_id)
+            result = self._process_inbound_call_async(twilio_data, course_id, agent_id, student_id)
             return result
                 
         except Exception as e:
@@ -77,7 +79,7 @@ class EntrypointVoiceAPI(APIView):
             'callstatus': random.choice(["ringing", "in-progress", "completed"])  # Random call status
         }
     
-    def _process_inbound_call_async(self, twilio_data, course_id, agent_id=None):
+    def _process_inbound_call_async(self, twilio_data, course_id, agent_id=None, student_id=None):
         """Process the inbound call asynchronously."""
         async def process_call():
             try:
@@ -143,6 +145,7 @@ class EntrypointVoiceAPI(APIView):
                     course_id=course_id,
                     agent_id=str(agent.id),
                     token=daily_room_token,
+                    student_id=student_id,
                 )
                 
                 return Response({
@@ -154,6 +157,7 @@ class EntrypointVoiceAPI(APIView):
                     'token': daily_room_token,
                     'course_name': course.name,
                     'agent_name': agent.name,
+                    'student_id': student_id,
                 })
                 
             except ValueError as e:

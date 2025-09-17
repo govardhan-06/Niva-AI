@@ -17,7 +17,8 @@ def create_course(
     max_score: float = 100.00,
     syllabus: str = "",
     instructions: str = "",
-    evaluation_criteria: str = ""
+    evaluation_criteria: str = "",
+    language: str = "en"
 ) -> Course:
     """
     Create a new course and its associated agent.
@@ -31,6 +32,7 @@ def create_course(
         syllabus (str): Course syllabus
         instructions (str): Course instructions
         evaluation_criteria (str): Evaluation criteria
+        language (str): Course language (default: 'en')
 
     Returns:
         Course: The created course object with associated agent
@@ -44,7 +46,8 @@ def create_course(
         max_score=max_score,
         syllabus=syllabus,
         instructions=instructions,
-        evaluation_criteria=evaluation_criteria
+        evaluation_criteria=evaluation_criteria,
+        language=language
     )
     logger.info(f"Created course: {course.name}")
     
@@ -99,7 +102,8 @@ def update_course(
     max_score: float = None,
     syllabus: str = None,
     instructions: str = None,
-    evaluation_criteria: str = None
+    evaluation_criteria: str = None,
+    language: str = None
 ) -> Optional[Course]:
     """
     Update a course.
@@ -114,6 +118,7 @@ def update_course(
         syllabus (str): Course syllabus (optional)
         instructions (str): Course instructions (optional)
         evaluation_criteria (str): Evaluation criteria (optional)
+        language (str): Course language (optional)
 
     Returns:
         Course: Updated course object if found, None otherwise
@@ -168,6 +173,18 @@ def update_course(
     if evaluation_criteria is not None:
         course.evaluation_criteria = evaluation_criteria
         update_fields.append('evaluation_criteria')
+    if language is not None:
+        course.language = language
+        update_fields.append('language')
+        
+        # Update associated agents' language as well
+        try:
+            from niva_app.services.agent import update_agent
+            agents = course.agents.all()
+            for agent in agents:
+                update_agent(str(agent.id), language=language)
+        except Exception as e:
+            logger.warning(f"Failed to update agent language: {e}")
 
     if update_fields:
         update_fields.append('updated_at')

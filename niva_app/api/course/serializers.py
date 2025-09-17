@@ -10,6 +10,7 @@ class CreateCourseInputSerializer(serializers.Serializer):
     syllabus = serializers.CharField(required=False, allow_blank=True)
     instructions = serializers.CharField(required=False, allow_blank=True)
     evaluation_criteria = serializers.CharField(required=False, allow_blank=True)
+    language = serializers.ChoiceField(choices=[('en', 'English'), ('hi', 'Hindi'), ('ml', 'Malayalam'), ('ta', 'Tamil')], default='en')
 
 
 class GetCourseInputSerializer(serializers.Serializer):
@@ -30,6 +31,7 @@ class UpdateCourseInputSerializer(serializers.Serializer):
     syllabus = serializers.CharField(required=False, allow_blank=True)
     instructions = serializers.CharField(required=False, allow_blank=True)
     evaluation_criteria = serializers.CharField(required=False, allow_blank=True)
+    language = serializers.ChoiceField(choices=[('en', 'English'), ('hi', 'Hindi'), ('ml', 'Malayalam'), ('ta', 'Tamil')], required=False)
 
 
 class DeleteCourseInputSerializer(serializers.Serializer):

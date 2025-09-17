@@ -14,5 +14,7 @@ urlpatterns = static(settings.STATIC_URL, document_root=settings.STATIC_ROOT) + 
     path("api/v1/daily/", include(niva_urls.daily_routes)),
     path("api/v1/pipecat/", include(pipecat_urls.agent_routes)),
     path("api/v1/initiate/", include(niva_urls.entrypoint_routes)),
-    path("api/v1/course/", include(niva_urls.course_routes))
+    path("api/v1/course/", include(niva_urls.course_routes)),
+    path("api/v1/feedback/", include(niva_urls.feedback_routes)),
+    path("api/v1/student/", include(niva_urls.student_routes))
 ]

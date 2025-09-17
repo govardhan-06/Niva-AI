@@ -27,6 +27,7 @@ def test_voice_call(request):
             "sip_endpoint": data.get("sip_endpoint", "test@sip.example.com"),
             "course_id": data.get("course_id", "test_course_123"),
             "agent_id": data.get("agent_id", "test_agent_456"),
+            "student_id": data.get("student_id", str(uuid.uuid4())),  # Add student_id parameter
             "token": data.get("token", "test_daily_token_123"),  # Add token parameter
             "twilio_data": data.get("twilio_data", {"test": True, "call_sid": "test_sid"})
         }

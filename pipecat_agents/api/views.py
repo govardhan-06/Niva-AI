@@ -109,6 +109,7 @@ class VoiceCallView(AuthenticatedAPIView):
             'token': data.get('token', ''),  # Extract token from request
             'course_id': data.get('course_id'),
             'agent_id': data.get('agent_id'),
+            'student_id': data.get('student_id'),
             'location_id': data.get('location_id', ''),
             'phone_number': data.get('phone_number', ''),
             'twilio_data': data.get('twilio_data', {})
@@ -116,7 +117,7 @@ class VoiceCallView(AuthenticatedAPIView):
     
     def _validate_required_fields(self, params):
         """Validate that all required fields are present"""
-        required_fields = ['daily_call_id', 'daily_room_url', 'sip_endpoint', 'course_id', 'agent_id']
+        required_fields = ['daily_call_id', 'daily_room_url', 'sip_endpoint', 'course_id', 'agent_id', 'student_id']
         missing_fields = [field for field in required_fields if not params.get(field)]
         
         if missing_fields:
@@ -139,6 +140,7 @@ class VoiceCallView(AuthenticatedAPIView):
                 twilio_data=params['twilio_data'],
                 course_id=params['course_id'],
                 agent_id=params['agent_id'],
+                student_id=params['student_id'],
                 token=params['token']  # Pass token to service
             )
         

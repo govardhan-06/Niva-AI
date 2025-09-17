@@ -84,7 +84,7 @@ class ProcessPostCallDataView(APIView):
             logger.info(f"Received post-call data for call {request.data.get('call_id')}")
             
             # Validate required fields
-            required_fields = ['call_id', 'session_id', 'course_id', 'agent_id']
+            required_fields = ['call_id', 'session_id', 'course_id', 'agent_id', 'student_id']
             for field in required_fields:
                 if not request.data.get(field):
                     return Response({

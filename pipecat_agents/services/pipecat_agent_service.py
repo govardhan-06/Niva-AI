@@ -71,6 +71,7 @@ class PipecatAgentService:
         twilio_data: dict = None,
         course_id: str = None,
         agent_id: str = None,
+        student_id: str = None,
         token: str = None  
     ) -> dict:
         """
@@ -85,6 +86,7 @@ class PipecatAgentService:
             twilio_data: Additional Twilio call data
             course_id: course identifier
             agent_id: Agent identifier
+            student_id: Student identifier
             token: Daily.co authentication token
         
         Returns:
@@ -107,6 +109,7 @@ class PipecatAgentService:
                 phone_number=phone_number,
                 location_id=location_id,
                 twilio_data=twilio_data,
+                student_id=student_id,
                 token=token or "" 
             )
             
@@ -138,6 +141,7 @@ class PipecatAgentService:
         phone_number: str = None,
         location_id: str = None,
         twilio_data: dict = None,
+        student_id: str = None,
         token: str = ""
     ) -> dict:
         """
@@ -152,6 +156,7 @@ class PipecatAgentService:
             phone_number: Customer's phone number
             location_id: Location identifier
             twilio_data: Additional Twilio data
+            student_id: Student identifier
             token: Authentication token
         
         Returns:
@@ -181,7 +186,8 @@ class PipecatAgentService:
                 "course_id": course_id,
                 "agent_id": agent_id,
                 "agent_name": agent_name,
-                "twilio_data": twilio_data or {}
+                "twilio_data": twilio_data or {},
+                "student_id": student_id,
             }
             
             # Start the agent in a separate thread to avoid asyncio loop issues
@@ -199,7 +205,8 @@ class PipecatAgentService:
                             session_id=session_id,
                             course_id=course_id,
                             agent_id=agent_id,
-                            caller_number=phone_number
+                            caller_number=phone_number,
+                            student_id=student_id,
                         )
                     )
                 except Exception as e:
@@ -243,8 +250,12 @@ class PipecatAgentService:
         @sync_to_async
         def _get_agent_sync():
             try:
-                agent = Agent.objects.get(id=agent_id, course_id=course_id, is_active=True)
-                return agent.name
+                agent = Agent.objects.filter(id=agent_id, courses__id=course_id, is_active=True).first()
+                if agent:
+                    return agent.name
+                else:
+                    logger.warning(f"Agent with id {agent_id} not found for course {course_id}")
+                    return "Unknown Agent"
             except Exception as e:
                 logger.error(f"Error determining agent type: {e}")
                 return "Unknown Agent"

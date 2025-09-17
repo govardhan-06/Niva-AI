@@ -35,7 +35,7 @@ class AgentService:
         }
     
     def handle_voice_call(self, phone_number, daily_call_id, daily_room_url, 
-                         sip_endpoint, twilio_data, course_id, agent_id, token=None):
+                         sip_endpoint, twilio_data, course_id, agent_id, student_id, token=None):
         """
         Forwards voice call requests to pipecat_agents service.
         
@@ -48,7 +48,7 @@ class AgentService:
             course_id: Course identifier (required)
             agent_id: Agent identifier (required)
             token: Daily.co authentication token (required)
-        
+            student_id: Student identifier (required)
         Returns:
             dict: Response from the pipecat_agents service
         """
@@ -62,7 +62,8 @@ class AgentService:
                 "sip_endpoint": sip_endpoint,
                 "twilio_data": twilio_data,
                 "course_id": course_id, 
-                "agent_id": agent_id,    
+                "agent_id": agent_id, 
+                "student_id": student_id,   
                 "token": token or "",      
             }
             
@@ -205,7 +206,8 @@ class AgentCallProcessor:
             "agent_id": str,
             "transcript_content": str,
             "student_details": dict or None,
-            "call_status": str
+            "call_status": str,
+            "student_id": str
         }
         
         Returns:
@@ -222,11 +224,11 @@ class AgentCallProcessor:
             agent_id = call_data.get("agent_id")
             transcript_content = call_data.get("transcript_content")
             student_details = call_data.get("student_details")
-
+            student_id = call_data.get("student_id")
             print("Student details from Agent: "+str(student_details))
             
             # Validate required fields
-            if not all([call_id, session_id, course_id, agent_id]):
+            if not all([call_id, session_id, course_id, agent_id, student_id]):
                 raise ValueError("Missing required fields: call_id, session_id, course_id, agent_id")
             
             if student_details is None and transcript_content:
@@ -244,8 +246,7 @@ class AgentCallProcessor:
                 logger.error(f"Error generating call summary: {e}")
             
             # Process student data if available
-            student_id = None
-            if student_details:
+            if not student_id and student_details:
                 logger.info(f"Processing student data: {student_details}")
                 try:
                     student_id = await AgentCallProcessor.handle_student_data(
@@ -351,15 +352,26 @@ class AgentCallProcessor:
             # Get course information for context
             course_info = ""
             try:
-                course = await Course.objects.aget(id=course_id)
-                course_info = f"""
-                Course: {course.name}
-                Description: {course.description}
-                Evaluation Criteria: {course.evaluation_criteria or 'Standard interview assessment'}
-                Passing Score: {course.passing_score}/{course.max_score}
-                """
-            except Course.DoesNotExist:
-                logger.warning(f"Course {course_id} not found, using generic assessment")
+                @sync_to_async
+                def _get_course():
+                    try:
+                        return Course.objects.get(id=course_id)
+                    except Course.DoesNotExist:
+                        return None
+                
+                course = await _get_course()
+                if course:
+                    course_info = f"""
+                    Course: {course.name}
+                    Description: {course.description}
+                    Evaluation Criteria: {course.evaluation_criteria or 'Standard interview assessment'}
+                    Passing Score: {course.passing_score}/{course.max_score}
+                    """
+                else:
+                    logger.warning(f"Course {course_id} not found, using generic assessment")
+                    course_info = "Generic interview assessment"
+            except Exception as e:
+                logger.warning(f"Error getting course info: {e}, using generic assessment")
                 course_info = "Generic interview assessment"
 
             # Generate AI feedback
@@ -375,6 +387,24 @@ class AgentCallProcessor:
             @sync_to_async
             def _create_feedback():
                 try:
+                    # Check if feedback already exists for this call
+                    existing_feedback = Feedback.objects.filter(daily_call=daily_call).first()
+                    if existing_feedback:
+                        logger.warning(f"Feedback already exists for call {daily_call.call_sid}, updating instead")
+                        existing_feedback.student_id = student_id
+                        existing_feedback.agent_id = agent_id
+                        existing_feedback.overall_rating = feedback_data.overall_rating
+                        existing_feedback.communication_rating = feedback_data.communication_rating
+                        existing_feedback.technical_rating = feedback_data.technical_rating
+                        existing_feedback.confidence_rating = feedback_data.confidence_rating
+                        existing_feedback.feedback_text = feedback_data.feedback_text
+                        existing_feedback.strengths = feedback_data.strengths
+                        existing_feedback.improvements = feedback_data.improvements
+                        existing_feedback.recommendations = feedback_data.recommendations
+                        existing_feedback.save()
+                        logger.info(f"Feedback updated with ID: {existing_feedback.id}")
+                        return True
+                    
                     with transaction.atomic():
                         feedback = Feedback.objects.create(
                             student_id=student_id,
@@ -391,6 +421,9 @@ class AgentCallProcessor:
                         )
                         logger.info(f"Feedback created with ID: {feedback.id}")
                         return True
+                except IntegrityError as e:
+                    logger.error(f"Integrity error creating feedback (possibly duplicate): {e}")
+                    return False
                 except Exception as e:
                     logger.error(f"Database error creating feedback: {e}")
                     return False
@@ -461,7 +494,7 @@ class AgentCallProcessor:
             """
 
             response = gemini_client.models.generate_content(
-                model="gemini-1.5-pro",
+                model="gemini-2.5-flash",
                 contents=[prompt],
                 config={
                     "response_mime_type": "application/json",
@@ -640,7 +673,7 @@ class AgentCallProcessor:
         )
 
         response = gemini_client.models.generate_content(
-            model="gemini-2.5-pro",
+            model="gemini-2.5-flash",
             contents=[prompt],
             config={
                 "response_mime_type": "application/json",
@@ -680,7 +713,7 @@ class AgentCallProcessor:
 
         try:
             response = gemini_client.models.generate_content(
-                model="gemini-2.5-pro",
+                model="gemini-2.5-flash",
                 contents=[prompt],
                 config={
                     "response_mime_type": "application/json",

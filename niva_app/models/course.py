@@ -72,6 +72,20 @@ class Course(TimestampBase):
         blank=True,
         help_text="Detailed criteria on how the interview will be evaluated"
     )
+    
+    LANGUAGE_CHOICES = [
+        ('en', 'English'),
+        ('hi', 'Hindi'),
+        ('ml', 'Malayalam'),
+        ('ta', 'Tamil'),
+    ]
+    
+    language = CharField(
+        max_length=2,
+        choices=LANGUAGE_CHOICES,
+        default='en',
+        help_text="The language for this course and its associated agent"
+    )
 
     def __str__(self):
         return f"{self.name}"

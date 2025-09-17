@@ -230,7 +230,7 @@ class PipecatAgentRunner:
 
     async def send_post_call_data(self, call_id: str, session_id: str, course_id: str, 
                                 agent_id: str, transcript_content: str = None, 
-                                recording_file_data: bytes = None, customer_details: dict = None, caller_number: str = None):
+                                recording_file_data: bytes = None, customer_details: dict = None, caller_number: str = None, student_id: str = None):
         """
         Send post-call data to niva_app for processing
         """
@@ -246,7 +246,8 @@ class PipecatAgentRunner:
                 "agent_id": agent_id,
                 "transcript_content": transcript_content,
                 "customer_details": customer_details,
-                "call_status": "completed"
+                "call_status": "completed",
+                "student_id": student_id
             }
             
             # Add recording data if available
@@ -312,7 +313,7 @@ class PipecatAgentRunner:
 
     async def handle_post_call_operations(self, room_url: str, token: str, call_id: str, 
                                         sip_uri: str, session_id: str, course_id: str = None, 
-                                        agent_id: str = None, caller_number: str = None):
+                                        agent_id: str = None, caller_number: str = None, student_id: str = None):
         """
         Simplified post-call operations - collect data and send to niva_app
         """
@@ -359,7 +360,8 @@ class PipecatAgentRunner:
                 transcript_content=transcript_content,
                 recording_file_data=recording_file_data,
                 customer_details=customer_details,
-                caller_number=caller_number
+                caller_number=caller_number,
+                student_id=student_id
             )
             
             if result and result.get("success"):
@@ -380,14 +382,14 @@ class PipecatAgentRunner:
             await self.cleanup_temp_files()
     
     async def run_inbound_agent(self, room_url: str, token: str, call_id: str, 
-                            sip_uri: str, session_id: str, course_id: str, agent_id: str, caller_number: str = None):
+                            sip_uri: str, session_id: str, course_id: str, agent_id: str, caller_number: str = None, student_id: str = None):
         """
         Entry point for voice conversations with flow management.
         Routes to LLM agent based on agent language and model.
         """
         try:
             await self.run_inbound_agent_llm(
-                    room_url, token, call_id, sip_uri, session_id, course_id, agent_id, caller_number
+                    room_url, token, call_id, sip_uri, session_id, course_id, agent_id, caller_number, student_id
                 )
         except ObjectDoesNotExist:
             logger.error(f"Agent with ID {agent_id} not found")
@@ -397,7 +399,7 @@ class PipecatAgentRunner:
             raise
     
     async def run_inbound_agent_llm(self, room_url: str, token: str, call_id: str, 
-                            sip_uri: str, session_id: str, course_id: str, agent_id: str, caller_number: str = None):
+                            sip_uri: str, session_id: str, course_id: str, agent_id: str, caller_number: str = None, student_id: str = None):
         """
         Entry point for inbound voice conversations with flow management for agent_llm.
         """
@@ -436,7 +438,7 @@ class PipecatAgentRunner:
 
         llm = GoogleLLMService(
             api_key=config.GOOGLE_GEMINI_API_KEY,
-            model="gemini-2.5-pro",
+            model="gemini-2.5-flash",
             system_instruction=agent_system_instruction,
             params=GoogleLLMService.InputParams(
                 temperature=1.0, 
@@ -522,7 +524,8 @@ class PipecatAgentRunner:
                     session_id=session_id,
                     course_id=course_id,
                     agent_id=agent_id,
-                    caller_number=caller_number
+                    caller_number=caller_number,
+                    student_id=student_id
                 )
 
             except Exception as e:

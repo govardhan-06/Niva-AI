@@ -90,11 +90,13 @@ class BaseAPI(GenericAPIView, ResponseMessageMixin):
             self.set_response_message(message)
         return Response(
             status=HTTP_400_BAD_REQUEST,
+            data={"message": message} if message else {}
         )
 
-    def get_response_200(self):
+    def get_response_200(self, **kwargs):
         return Response(
             status=HTTP_200_OK,
+            data=kwargs
         )
 
 class OpenAPI(BaseAPI):

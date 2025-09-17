@@ -16,13 +16,14 @@ def create_agent_for_course(course: Course) -> Agent:
     Returns:
         Agent: The created agent object
     """
-    agent_name = f"{course.name} Assistant"
+    # agent_name = f"{course.name} Assistant"
+    agent_name = "Priya"
     
     # Create a default agent for the course
     agent = Agent.objects.create(
         name=agent_name,
         is_active=True,
-        language='en',
+        language=course.language, 
         agent_type='Course Assistant'
     )
     

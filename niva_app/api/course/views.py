@@ -38,6 +38,7 @@ class CreateCourse(OpenAPI):
         syllabus: string (optional)
         instructions: string (optional)
         evaluation_criteria: string (optional)
+        language: string (optional, default: 'en')
 
     Response:
         message: string
@@ -80,7 +81,8 @@ class CreateCourse(OpenAPI):
                 max_score=float(data.get("max_score", 100.00)),
                 syllabus=data.get("syllabus", ""),
                 instructions=data.get("instructions", ""),
-                evaluation_criteria=data.get("evaluation_criteria", "")
+                evaluation_criteria=data.get("evaluation_criteria", ""),
+                language=data.get("language", "en")
             )
 
             # Get associated agents
@@ -104,6 +106,7 @@ class CreateCourse(OpenAPI):
                 "syllabus": course.syllabus,
                 "instructions": course.instructions,
                 "evaluation_criteria": course.evaluation_criteria,
+                "language": course.language,
                 "created_at": course.created_at.isoformat(),
                 "updated_at": course.updated_at.isoformat(),
                 "agents": agents_data,
@@ -187,6 +190,7 @@ class GetCourse(OpenAPI):
                 "syllabus": course.syllabus,
                 "instructions": course.instructions,
                 "evaluation_criteria": course.evaluation_criteria,
+                "language": course.language,
                 "created_at": course.created_at.isoformat(),
                 "updated_at": course.updated_at.isoformat(),
                 "agents": agents_data,
@@ -241,6 +245,17 @@ class GetAllCourses(OpenAPI):
             
             courses_data = []
             for course in courses:
+                # Get associated agents for each course
+                agents_data = []
+                for agent in course.agents.all():
+                    agents_data.append({
+                        "id": str(agent.id),
+                        "name": agent.name,
+                        "is_active": agent.is_active,
+                        "language": agent.language,
+                        "agent_type": agent.agent_type
+                    })
+                
                 courses_data.append({
                     "id": str(course.id),
                     "name": course.name,
@@ -251,8 +266,10 @@ class GetAllCourses(OpenAPI):
                     "syllabus": course.syllabus,
                     "instructions": course.instructions,
                     "evaluation_criteria": course.evaluation_criteria,
+                    "language": course.language,
                     "created_at": course.created_at.isoformat(),
                     "updated_at": course.updated_at.isoformat(),
+                    "agents": agents_data,
                 })
 
             return Response(
@@ -318,7 +335,8 @@ class UpdateCourse(OpenAPI):
                 max_score=float(data["max_score"]) if data.get("max_score") else None,
                 syllabus=data.get("syllabus"),
                 instructions=data.get("instructions"),
-                evaluation_criteria=data.get("evaluation_criteria")
+                evaluation_criteria=data.get("evaluation_criteria"),
+                language=data.get("language")
             )
 
             if not course:
@@ -337,6 +355,7 @@ class UpdateCourse(OpenAPI):
                 "syllabus": course.syllabus,
                 "instructions": course.instructions,
                 "evaluation_criteria": course.evaluation_criteria,
+                "language": course.language,
                 "created_at": course.created_at.isoformat(),
                 "updated_at": course.updated_at.isoformat(),
             }

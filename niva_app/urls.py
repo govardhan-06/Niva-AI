@@ -44,6 +44,19 @@ from niva_app.api.course.views import (
     DeleteCourse,
 )
 
+from niva_app.api.feedback.views import (
+    GetFeedback,
+    GetStudentFeedbacks,
+)
+
+from niva_app.api.student.views import (
+    CreateStudent,
+    GetStudent,
+    GetAllStudents,
+    UpdateStudent,
+    DeleteStudent,
+)
+
 # Authentication routes
 auth_routes = [
     path("register/", CreateUser.as_view(), name="register"),
@@ -92,4 +105,19 @@ course_routes = [
     path('all/', GetAllCourses.as_view(), name='get-all-courses'),
     path('update/', UpdateCourse.as_view(), name='update-course'),
     path('delete/', DeleteCourse.as_view(), name='delete-course'),
+]
+
+# Feedback routes
+feedback_routes = [
+    path('get/', GetFeedback.as_view(), name='get-feedback'),
+    path('student/', GetStudentFeedbacks.as_view(), name='get-student-feedbacks'),
+]
+
+# Student routes
+student_routes = [
+    path('create/', CreateStudent.as_view(), name='create-student'),
+    path('get/', GetStudent.as_view(), name='get-student'),
+    path('all/', GetAllStudents.as_view(), name='get-all-students'),
+    path('update/', UpdateStudent.as_view(), name='update-student'),
+    path('delete/', DeleteStudent.as_view(), name='delete-student'),
 ]

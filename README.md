@@ -846,35 +846,138 @@ Stops a specific voice call.
 
 ---
 
-## Error Handling
+**Student API Endpoints**
 
-All APIs return consistent error responses:
+All student APIs are available at: `http://your-domain.com/api/v1/student/`
 
+### **1. Create Student**
+**Endpoint:** `POST /api/v1/student/create/`
+
+**Request Body:**
 ```json
 {
-  "error": "Error message",
-  "details": "Additional error details"  // optional
+    "first_name": "John",
+    "last_name": "Doe",
+    "phone_number": "1234567890",
+    "email": "john.doe@example.com",
+    "gender": "MALE",
+    "date_of_birth": "1990-01-15",
+    "course_ids": ["course-uuid-1", "course-uuid-2"]
 }
 ```
 
-### Common HTTP Status Codes:
-- `200` - OK
-- `201` - Created
-- `204` - No Content
-- `400` - Bad Request
-- `401` - Unauthorized
-- `403` - Forbidden
-- `404` - Not Found
-- `500` - Internal Server Error
+**Response:**
+```json
+{
+    "message": "Student created successfully",
+    "student": {
+        "id": "student-uuid",
+        "first_name": "John",
+        "last_name": "Doe",
+        "gender": "MALE",
+        "date_of_birth": "1990-01-15",
+        "email": "john.doe@example.com",
+        "phone_number": "+1234567890",
+        "created_at": "2025-09-17T10:30:00Z",
+        "updated_at": "2025-09-17T10:30:00Z",
+        "courses": [...]
+    }
+}
+```
 
----
+### **2. Get Student**
+**Endpoint:** `POST /api/v1/student/get/`
 
-## Rate Limiting
+**Request Body:**
+```json
+{
+    "student_id": "student-uuid"
+}
+```
 
-API endpoints may be subject to rate limiting. If you encounter rate limiting, you'll receive a `429 Too Many Requests` response with retry information.
+### **3. Get All Students**
+**Endpoint:** `POST /api/v1/student/all/`
 
----
+**Request Body (optional filters):**
+```json
+{
+    "course_id": "course-uuid",
+    "phone_number": "+1234567890",
+    "email": "john.doe@example.com"
+}
+```
 
-## Support
+### **4. Update Student**
+**Endpoint:** `POST /api/v1/student/update/`
 
-For API support and questions, please contact the development team or refer to the internal documentation.
+**Request Body:**
+```json
+{
+    "student_id": "student-uuid",
+    "first_name": "John Updated",
+    "phone_number": "9876543210",
+    "course_ids": ["new-course-uuid"]
+}
+```
+
+### **5. Delete Student**
+**Endpoint:** `POST /api/v1/student/delete/`
+
+**Request Body:**
+```json
+{
+    "student_id": "student-uuid"
+}
+```
+
+# **Feedback**
+
+#### 1. **Get Specific Feedback**
+- **Endpoint:** `GET /api/v1/feedback/get/`
+- **Purpose:** Retrieve a specific feedback by ID
+- **Parameters:** `feedback_id` (UUID)
+
+#### 2. **Get Student Feedbacks**
+- **Endpoint:** `GET /api/v1/feedback/student/`
+- **Purpose:** Get all feedbacks for a specific student
+- **Parameters:** 
+  - `student_id` (UUID, required)
+  - `limit` (integer, optional, default: 10, max: 100)
+  - `offset` (integer, optional, default: 0)
+
+#### 3. **Get Agent Feedbacks**
+- **Endpoint:** `GET /api/v1/feedback/agent/`
+- **Purpose:** Get all feedbacks for a specific agent
+- **Parameters:**
+  - `agent_id` (UUID, required)
+  - `limit` (integer, optional, default: 10, max: 100)
+  - `offset` (integer, optional, default: 0)
+
+#### 4. **Get Course Feedbacks**
+- **Endpoint:** `GET /api/v1/feedback/course/`
+- **Purpose:** Get all feedbacks for students in a specific course
+- **Parameters:**
+  - `course_id` (UUID, required)
+  - `limit` (integer, optional, default: 10, max: 100)
+  - `offset` (integer, optional, default: 0)
+
+#### 5. **Get All Feedbacks (with filtering)**
+- **Endpoint:** `GET /api/v1/feedback/all/`
+- **Purpose:** Get all feedbacks with optional filtering and statistics
+- **Parameters:**
+  - `student_id` (UUID, optional)
+  - `agent_id` (UUID, optional)
+  - `course_id` (UUID, optional)
+  - `min_rating` (integer, optional, 1-10)
+  - `max_rating` (integer, optional, 1-10)
+  - `limit` (integer, optional, default: 10, max: 100)
+  - `offset` (integer, optional, default: 0)
+  - `ordering` (string, optional, default: '-created_at')
+
+#### 6. **Get Feedback Statistics**
+- **Endpoint:** `GET /api/v1/feedback/statistics/`
+- **Purpose:** Get comprehensive feedback statistics
+- **Parameters:**
+  - `student_id` (UUID, optional)
+  - `agent_id` (UUID, optional)
+  - `course_id` (UUID, optional)

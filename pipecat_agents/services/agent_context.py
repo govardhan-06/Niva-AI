@@ -288,6 +288,8 @@ class AgentContextService:
             - Motivation and fit for the program
             """
         
+        print(full_context)
+        
         return full_context.strip()
     
     @staticmethod
