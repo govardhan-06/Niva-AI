@@ -16,25 +16,26 @@ from app import config
 # from celery.schedules import crontab
 import niva_app
 from corsheaders.defaults import default_headers
+from niva_app.lib.aws_secrets import get_env_var
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Determine the environment so that we can set the correct settings based on the environment
-ENVIRONMENT = os.environ.get("ENVIRONMENT", "development")
+ENVIRONMENT = get_env_var("ENVIRONMENT", "development")
 IS_PRODUCTION = ENVIRONMENT == "production"
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-i2r@#%x0b%os3(tkrfsu2zfx5pq#us28&2@t#%jc*cc_k_((au'
+SECRET_KEY = get_env_var("SECRET_KEY", 'django-insecure-i2r@#%x0b%os3(tkrfsu2zfx5pq#us28&2@t#%jc*cc_k_((au')
 
 # Pipecat micoservice bot token
 PIPECAT_BOT_API_TOKEN = config.PIPECAT_BOT_API_TOKEN
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = get_env_var("DEBUG", "False").lower() == "true"
 
 #TODO: Need to add correct origins for production
 ALLOWED_HOSTS = [
@@ -62,11 +63,9 @@ INSTALLED_APPS = [
     "channels",
     "app",
     "phonenumber_field",
-    # "celery_app",
-    # "django_celery_beat",
     "drf_yasg",
-    "niva_app",
-    "pipecat_agents"
+    "niva_app.apps.NivaAppConfig",
+    "pipecat_agents.apps.PipecatAgentsConfig"
 ]
 
 MIDDLEWARE = [
@@ -102,31 +101,14 @@ AUTH_USER_MODEL = "niva_app.User"
 
 ASGI_APPLICATION = "app.asgi.application"
 
-# Timezone and beat settings
-# CELERY_TIMEZONE = "UTC"
-# CELERY_ENABLE_UTC = True
-# CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL") or "redis://redis:6379/0"
-# CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND") or "redis://redis:6379/0"
-
-# CELERY_BEAT_SCHEDULE = {
-#     "send_emails": {
-#         "task": "celery_app.tasks.send_conversations.send_conversations_periodically_locations",
-#         "schedule": crontab(minute=0),  # This will run at the start of every hour
-#         "options": {"queue": "maintenance"},
-#     },
-# }
-
-# Database
-# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.environ.get("DB_NAME"),
-        "USER": os.environ.get("DB_USER"),
-        "PASSWORD": os.environ.get("DB_PASSWORD"),
-        "HOST": os.environ.get("DB_HOST"),
-        "PORT": os.environ.get("DB_PORT"),
+        "NAME": get_env_var("DB_NAME"),
+        "USER": get_env_var("DB_USER"),
+        "PASSWORD": get_env_var("DB_PASSWORD"),
+        "HOST": get_env_var("DB_HOST"),
+        "PORT": get_env_var("DB_PORT"),
         "CONN_MAX_AGE": 3600,
     },
 }
@@ -211,36 +193,25 @@ CORS_ALLOWED_ORIGINS = [
 #TODO: Need to add correct origins for production
 CSRF_TRUSTED_ORIGINS=['https://*.nivaai.com']
 
-# CHANNEL_LAYERS = {
-#     "default": {
-#         "BACKEND": "channels_redis.core.RedisChannelLayer",
-#         "CONFIG": {
-#             "hosts": [(os.environ.get("REDIS_HOST", "redis"), int(os.environ.get("REDIS_PORT", 6379)))],
-#         },
-#     },
-# }
-
-REDIS_HOST     = os.getenv("REDIS_HOST", "redis")      # default: docker‑compose service name
-REDIS_PORT     = int(os.getenv("REDIS_PORT", "6379"))
-REDIS_DB       = os.getenv("REDIS_DB", "1")   # use DB 1 for cache
-
+REDIS_HOST     = get_env_var("REDIS_HOST", "redis")
+REDIS_PORT     = int(get_env_var("REDIS_PORT", "6379"))
+REDIS_DB       = get_env_var("REDIS_DB", "1")
 LOCATION = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
 
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": LOCATION,
-        "TIMEOUT": 60 * 60,      # 1 h default TTL  (None = no expiry)
+        "TIMEOUT": 3600,
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
-            "PARSER_CLASS": "redis.connection.HiredisParser",  # needs hiredis (optional)
+            "PARSER_CLASS": "redis.connection.HiredisParser",
             "CONNECTION_POOL_KWARGS": {"max_connections": 100, "retry_on_timeout": True},
             "COMPRESSOR": "django_redis.compressors.zlib.ZlibCompressor",
-            # Uncomment if you cache only JSON‑serialisable values
-            # "SERIALIZER": "django_redis.serializers.json.JSONSerializer",
         },
     }
 }
+
 
 # importing local settings
 try:

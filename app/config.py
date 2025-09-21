@@ -1,25 +1,30 @@
 import os
+from niva_app.lib.aws_secrets import get_env_var
 
 NIVA_APP_VERSION = "0.0.1"
 
-REDIS_HOST = os.getenv("REDIS_HOST") or ""
-REDIS_PORT = os.getenv("REDIS_PORT") or ""
+# Redis configuration
+REDIS_HOST = get_env_var("REDIS_HOST", "")
+REDIS_PORT = 6379
 
-DB_NAME=os.getenv("DB_NAME") or ""
-DB_USER=os.getenv("DB_USER") or ""
-DB_PASSWORD=os.getenv("DB_PASSWORD") or ""
-DB_HOST=os.getenv("DB_HOST") or ""
-DB_PORT=os.getenv("DB_PORT") or ""
+# Database configuration
+DB_NAME = get_env_var("DB_NAME", "")
+DB_USER = get_env_var("DB_USER", "")
+DB_PASSWORD = get_env_var("DB_PASSWORD", "")
+DB_HOST = get_env_var("DB_HOST", "")
+DB_PORT = 5432
 
-PIPECAT_AGENTS_URL=os.getenv("PIPECAT_AGENTS_URL") or ""
-PIPECAT_BOT_API_TOKEN=os.getenv("PIPECAT_BOT_API_TOKEN") or ""
-NIVA_APP_URL=os.getenv("NIVA_APP_URL") or ""
+# Pipecat configuration
+PIPECAT_AGENTS_URL = "http://localhost:8000/api/v1/pipecat/"
+PIPECAT_BOT_API_TOKEN = get_env_var("PIPECAT_BOT_API_TOKEN", "")
+NIVA_APP_URL = "http://localhost:8000/api/v1/agent/"
 
-AWS_BUCKET_NAME=os.getenv("AWS_BUCKET_NAME") or "niva-ai-bucket"
-AWS_ACCESS_KEY_ID=os.getenv("AWS_ACCESS_KEY_ID") or ""
-AWS_SECRET_ACCESS_KEY=os.getenv("AWS_SECRET_ACCESS_KEY") or ""
-AWS_REGION=os.getenv("AWS_REGION") or "eu-central-1"
+# AWS configuration
+AWS_BUCKET_NAME = get_env_var("AWS_BUCKET_NAME", "niva-ai-bucket")
+AWS_ACCESS_KEY_ID = get_env_var("AWS_ACCESS_KEY_ID", "")
+AWS_SECRET_ACCESS_KEY = get_env_var("AWS_SECRET_ACCESS_KEY", "")
+AWS_REGION = get_env_var("AWS_REGION", "eu-central-1")
 
-GOOGLE_GEMINI_API_KEY= os.getenv('GOOGLE_GEMINI_API_KEY') or ""
-
-DEEPGRAM_STT_KEY=os.getenv("DEEPGRAM_STT_KEY") or ""
+# API Keys
+GOOGLE_GEMINI_API_KEY = get_env_var("GOOGLE_GEMINI_API_KEY", "")
+DEEPGRAM_STT_KEY = get_env_var("DEEPGRAM_STT_KEY", "")
