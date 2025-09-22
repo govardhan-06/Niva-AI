@@ -39,13 +39,7 @@ DEBUG = get_env_var("DEBUG", "False").lower() == "true"
 
 #TODO: Need to add correct origins for production
 ALLOWED_HOSTS = [
-    "app.nivaai.com",
-    "api.nivaai.com",
-    "staging.nivaai.com",
-    "staging-api.nivaai.com",
-    "localhost",
-    "127.0.0.1",
-    "capital-thankfully-trout.ngrok-free.app",
+    "*",
 ]
 
 # Application definition
@@ -176,22 +170,8 @@ os.makedirs(MEDIA_ROOT, exist_ok=True)
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # cors header
-CORS_ORIGIN_ALLOW_ALL = True
+CORS_ORIGIN_ALLOW_ALL = True  # Allow all origins
 CORS_ALLOW_HEADERS = [*default_headers, "Timezone"]
-
-#TODO: Need to add correct origins for production
-CORS_ALLOWED_ORIGINS = [
-    "https://app.nivaai.com",
-    "https://staging.nivaai.com",
-    "http://localhost:3000",
-    "https://capital-thankfully-trout.ngrok-free.app",
-    "http://127.0.0.1:3000",
-    "https://staging-api.nivaai.com",
-    "https://api.nivaai.com"
-]
-
-#TODO: Need to add correct origins for production
-CSRF_TRUSTED_ORIGINS=['https://*.nivaai.com']
 
 REDIS_HOST     = get_env_var("REDIS_HOST", "redis")
 REDIS_PORT     = int(get_env_var("REDIS_PORT", "6379"))
