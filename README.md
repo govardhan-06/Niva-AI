@@ -7,6 +7,12 @@ This document provides comprehensive API documentation for the Niva AI applicati
 http://localhost:8000/api/v1
 ```
 
+or
+
+```
+http://3.66.219.6:8000/api/v1/
+```
+
 ## Authentication
 Most endpoints require authentication using token-based authentication. Include the token in the Authorization header:
 ```
