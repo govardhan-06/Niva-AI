@@ -64,8 +64,8 @@ INSTALLED_APPS = [
     "app",
     "phonenumber_field",
     "drf_yasg",
-    "niva_app.apps.NivaAppConfig",
-    "pipecat_agents.apps.PipecatAgentsConfig"
+    "niva_app.app.NivaAppConfig",
+    "pipecat_agents.app.PipecatAgentsConfig"
 ]
 
 MIDDLEWARE = [
