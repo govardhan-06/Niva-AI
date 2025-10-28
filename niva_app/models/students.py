@@ -1,5 +1,6 @@
 from niva_app.models.base import TimestampBase
 from django.db import models
+from django.conf import settings
 
 class Student(TimestampBase):
     """
@@ -9,6 +10,7 @@ class Student(TimestampBase):
     relationships with course, call records, score, etc.
     
     Fields:
+        user (OneToOneField): Associated user account (optional)
         first_name (TextField): Student's first name
         last_name (TextField): Student's last name
         gender (TextField): Student's gender
@@ -18,6 +20,7 @@ class Student(TimestampBase):
         course (ManyToManyField): course associated with this Student
     
     Relationships:
+        - Related to User (one-to-one, optional)
         - Related to course (many-to-many)
         - Related to DailyCall (one-to-many)
     """
@@ -28,6 +31,14 @@ class Student(TimestampBase):
         ("RATHER_NOT_SAY", "rather not say"),
         ("UNKNOWN", "unknown"),
     ]
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='student_profile',
+        help_text="Associated user account (if the student has an account)"
+    )
     first_name = models.TextField(null=False, blank=False)
     last_name = models.TextField(null=False, blank=True)
     gender = models.TextField(choices=Genders, null=False, default="UNKNOWN")

@@ -72,27 +72,85 @@ class CreateUser(OpenAPI):
                 "role": user.role.name if user.role else None
             }
 
+            # Create student profile if requested
+            student_data = None
+            if data.get("create_student_profile", False):
+                from niva_app.services.student import create_student
+                
+                # Get student data from request
+                first_name = data.get("first_name", "").strip()
+                last_name = data.get("last_name", "").strip()
+                phone_number = data.get("phone_number", "").strip()
+                
+                # Use email from user if not provided separately
+                student_email = data.get("email", user.email)
+                
+                # Split name from email if no first name provided
+                if not first_name and student_email:
+                    email_name = student_email.split('@')[0]
+                    first_name = email_name.split('.')[0].title() if '.' in email_name else email_name.title()
+                
+                if not first_name:
+                    first_name = "Student"
+                
+                # Phone number is required for student
+                if not phone_number:
+                    raise ValidationError("Phone number is required to create student profile")
+                
+                try:
+                    student = create_student(
+                        first_name=first_name,
+                        last_name=last_name,
+                        phone_number=phone_number,
+                        email=student_email,
+                        gender=data.get("gender", "UNKNOWN"),
+                        date_of_birth=data.get("date_of_birth"),
+                        course_ids=data.get("course_ids", []),
+                        user_id=str(user.id)
+                    )
+                    
+                    student_data = {
+                        "id": str(student.id),
+                        "first_name": student.first_name,
+                        "last_name": student.last_name,
+                        "phone_number": student.phone_number,
+                        "email": student.email
+                    }
+                    logger.info(f"Created student profile for user {user.email}")
+                except Exception as e:
+                    logger.error(f"Error creating student profile: {str(e)}")
+                    # Don't fail the user creation, just log the error
+                    user_data["student_profile_error"] = str(e)
+
+            response_data = {
+                "message": "User created successfully.",
+                "user": user_data,
+            }
+            
+            if student_data:
+                response_data["student"] = student_data
+
         except EmailAlreadyExistsException as e:
             logger.error("Email already in use: %s", data["email"])
+            print("Email already in use: "+data["email"])
             return Response(
                 data={"email": ["Email already in use"]},
                 status=HTTP_400_BAD_REQUEST,
             )
         except ValidationError as e:
             logger.error("Validation Error: %s", str(e))
+            print("Validation Error: "+str(e))
             return Response(data=e.message_dict, status=HTTP_400_BAD_REQUEST)
         except Exception as e:
             logger.error(f"Error creating user: {str(e)}")
+            print("Error creating user: "+str(e))
             return Response(
                 data={"error": "Failed to create user account"},
                 status=HTTP_400_BAD_REQUEST
             )
 
         return Response(
-            {
-                "message": "User created successfully.",
-                "user": user_data,
-            },
+            response_data,
             status=HTTP_200_OK,
         )
 
@@ -128,6 +186,7 @@ class LoginView(OpenAPI):
                 status=HTTP_404_NOT_FOUND,
             )
         if not user.check_password(password):
+            print("Invalid password: "+password)
             return Response(
                 data={"password": ["Invalid password"]},
                 status=HTTP_400_BAD_REQUEST,

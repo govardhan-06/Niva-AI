@@ -81,3 +81,24 @@ class DeleteStudentInputSerializer(serializers.Serializer):
     """
 
     student_id = serializers.UUIDField()
+
+
+class AssociateUserWithStudentInputSerializer(serializers.Serializer):
+    """
+    Input Serializer for AssociateUserWithStudent API
+
+    This serializer is used to validate the input data for associating a user with a student.
+    """
+
+    user_id = serializers.UUIDField(required=True, help_text="User ID to associate")
+    student_id = serializers.UUIDField(required=True, help_text="Student ID to associate")
+
+
+class GetStudentByUserInputSerializer(serializers.Serializer):
+    """
+    Input Serializer for GetStudentByUser API
+
+    This serializer is used to get a student by user ID.
+    """
+
+    user_id = serializers.UUIDField(required=True, help_text="User ID to look up")

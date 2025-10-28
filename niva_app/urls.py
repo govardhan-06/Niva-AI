@@ -42,6 +42,7 @@ from niva_app.api.course.views import (
     GetAllCourses,
     UpdateCourse,
     DeleteCourse,
+    ListAllCourses,
 )
 
 from niva_app.api.feedback.views import (
@@ -55,6 +56,9 @@ from niva_app.api.student.views import (
     GetAllStudents,
     UpdateStudent,
     DeleteStudent,
+    ListAllStudents,
+    AssociateUserWithStudent,
+    GetStudentByUser,
 )
 
 # Authentication routes
@@ -103,6 +107,7 @@ course_routes = [
     path('create/', CreateCourse.as_view(), name='create-course'),
     path('get/', GetCourse.as_view(), name='get-course'),
     path('all/', GetAllCourses.as_view(), name='get-all-courses'),
+    path('list/', ListAllCourses.as_view(), name='list-all-courses'),
     path('update/', UpdateCourse.as_view(), name='update-course'),
     path('delete/', DeleteCourse.as_view(), name='delete-course'),
 ]
@@ -118,6 +123,9 @@ student_routes = [
     path('create/', CreateStudent.as_view(), name='create-student'),
     path('get/', GetStudent.as_view(), name='get-student'),
     path('all/', GetAllStudents.as_view(), name='get-all-students'),
+    path('list/', ListAllStudents.as_view(), name='list-all-students'),
     path('update/', UpdateStudent.as_view(), name='update-student'),
     path('delete/', DeleteStudent.as_view(), name='delete-student'),
+    path('associate-user/', AssociateUserWithStudent.as_view(), name='associate-user-with-student'),
+    path('get-by-user/', GetStudentByUser.as_view(), name='get-student-by-user'),
 ]

@@ -7,12 +7,21 @@ NIVA_APP_VERSION = "0.0.1"
 REDIS_HOST = get_env_var("REDIS_HOST", "")
 REDIS_PORT = 6379
 
+LOCAL_REDIS_HOST = os.environ.get("LOCAL_REDIS_HOST")
+LOCAL_REDIS_PORT = os.environ.get("LOCAL_REDIS_PORT")
+
 # Database configuration
 DB_NAME = get_env_var("DB_NAME", "")
 DB_USER = get_env_var("DB_USER", "")
 DB_PASSWORD = get_env_var("DB_PASSWORD", "")
 DB_HOST = get_env_var("DB_HOST", "")
 DB_PORT = 5432
+
+LOCAL_DB_NAME = os.environ.get("LOCAL_DB_NAME")
+LOCAL_DB_USER = os.environ.get("LOCAL_DB_USER")
+LOCAL_DB_PASSWORD = os.environ.get("LOCAL_DB_PASSWORD")
+LOCAL_DB_HOST = os.environ.get("LOCAL_DB_HOST")
+LOCAL_DB_PORT = os.environ.get("LOCAL_DB_PORT")
 
 # Pipecat configuration
 PIPECAT_AGENTS_URL = "http://localhost:8000/api/v1/pipecat/"

@@ -119,9 +119,17 @@ def create_natural_conversation_node() -> NodeConfig:
         name="natural_conversation",
         task_messages=[
             {
-                "role": "user",
-                "content": """Continue the natural conversation. You can:
+                "role": "system",
+                "content": """Continue the natural conversation as the INTERVIEWER.
 
+CRITICAL ROLE CLARITY:
+- You are the INTERVIEWER conducting the interview
+- You are NOT the candidate/interviewee being interviewed
+- You ask questions and the student answers
+- Never respond as if someone is interviewing you
+- Never answer questions as if you are the candidate
+
+Your job as the interviewer:
 - Ask follow-up questions based on what the student just said
 - Explore different topics as they come up naturally
 - Assess the student's knowledge and skills through casual discussion
@@ -189,14 +197,14 @@ def create_welcome_node() -> NodeConfig:
         name="welcome_start",
         task_messages=[
             {
+                "role": "system",
+                "content": """CRITICAL: You are the INTERVIEWER, not the interviewee. You ask questions and guide the conversation. Never act as if you are the candidate being interviewed.
+
+You must speak first and initiate the conversation with a warm greeting.""",
+            },
+            {
                 "role": "user",
-                "content": """Hello there! Welcome to your interview. I'm really glad you could make it today.
-
-Before we dive in, let me just say - this is meant to be a friendly conversation, not a stressful interrogation! I'm here to get to know you better and understand your interests and goals.
-
-Feel free to relax and just be yourself. We can start wherever feels natural - maybe you could tell me a bit about yourself? Or if you have any questions about the program or process, I'm happy to address those first.
-
-What would you like to talk about?""",
+                "content": """[The student has just joined the interview session. Start the interview now by greeting them warmly.]"""
             }
         ],
         functions=[

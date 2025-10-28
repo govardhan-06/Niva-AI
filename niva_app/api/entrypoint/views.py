@@ -27,17 +27,18 @@ class EntrypointVoiceAPI(APIView):
     """
     
     class InputSerializer(serializers.Serializer):
-        course_id = serializers.UUIDField()
-        agent_id = serializers.UUIDField(required=False)
-        student_id = serializers.UUIDField(required=False)
+        course_id = serializers.UUIDField(required=True)
+        student_id = serializers.UUIDField(required=True)
     
     def post(self, request, *args, **kwargs):
         """
         Handle Entrypoint for inbound calls.
         
         Expected parameters:
-        - course_id: Course ID for the call
-        - agent_id: Agent ID (optional, will use first active agent if not provided)
+        - course_id: Course ID for the call (required)
+        - student_id: Student ID for the call (required)
+        
+        Agent will be automatically retrieved from the course (each course has one agent).
         """
         logger.info("Received EntrypointAPI for inbound call...")
         
@@ -55,11 +56,14 @@ class EntrypointVoiceAPI(APIView):
             twilio_data = self._generate_random_twilio_data()
             
             course_id = str(data['course_id'])
-            agent_id = str(data['agent_id']) if data.get('agent_id') else None
-            student_id = str(data['student_id']) if data.get('student_id') else None
+            student_id = str(data['student_id'])
+
+            logger.info(f"Student ID: {student_id}")
+            logger.info(f"Course ID: {course_id}")
+            logger.info(f"Twilio data: {twilio_data}")
             
             # Process call asynchronously
-            result = self._process_inbound_call_async(twilio_data, course_id, agent_id, student_id)
+            result = self._process_inbound_call_async(twilio_data, course_id, student_id)
             return result
                 
         except Exception as e:
@@ -79,7 +83,7 @@ class EntrypointVoiceAPI(APIView):
             'callstatus': random.choice(["ringing", "in-progress", "completed"])  # Random call status
         }
     
-    def _process_inbound_call_async(self, twilio_data, course_id, agent_id=None, student_id=None):
+    def _process_inbound_call_async(self, twilio_data, course_id, student_id):
         """Process the inbound call asynchronously."""
         async def process_call():
             try:
@@ -92,27 +96,24 @@ class EntrypointVoiceAPI(APIView):
                         # Get course
                         course = Course.objects.get(id=course_id, is_active=True)
                         
-                        # Get agent - either provided or first active agent for the course
-                        if agent_id:
-                            agent = Agent.objects.get(id=agent_id, is_active=True)
-                            # Verify agent is associated with the course
-                            if not agent.courses.filter(id=course_id).exists():
-                                raise ValueError(f"Agent {agent_id} is not associated with course {course_id}")
-                        else:
-                            # Get first active agent for this course
-                            agent = course.agents.filter(is_active=True).first()
-                            if not agent:
-                                raise ValueError(f"No active agents found for course {course_id}")
+                        # Get the agent for this course (each course has one agent)
+                        agent = course.agents.filter(is_active=True).first()
+                        if not agent:
+                            raise ValueError(f"No active agent found for course {course_id}. Each course must have one active agent.")
+                        
+                        # Verify we got exactly one agent (or at least one)
+                        agent_count = course.agents.filter(is_active=True).count()
+                        if agent_count > 1:
+                            logger.warning(f"Course {course_id} has {agent_count} active agents. Using the first one: {agent.id}")
                         
                         return course, agent
                         
                     except Course.DoesNotExist:
                         raise ValueError(f"Course {course_id} not found or is not active")
-                    except Agent.DoesNotExist:
-                        raise ValueError(f"Agent {agent_id} not found or is not active")
                 
                 # Get course and agent
                 course, agent = await get_course_and_agent()
+                logger.info(f"Retrieved agent {agent.id} ({agent.name}) for course {course_id}")
                 
                 # Create Daily room
                 room_result = await daily_service.create_and_save_room(
@@ -155,7 +156,9 @@ class EntrypointVoiceAPI(APIView):
                     'agent_result': agent_result,
                     'room_url': daily_room_url,
                     'token': daily_room_token,
+                    'course_id': course_id,
                     'course_name': course.name,
+                    'agent_id': str(agent.id),
                     'agent_name': agent.name,
                     'student_id': student_id,
                 })

@@ -1,0 +1,50 @@
+services:
+  # Combined service running all three apps
+  main:
+    build: .
+    image: niva-backend
+    command: |
+      bash -c "
+        # Run migrations and start Django server in background
+        python manage.py makemigrations
+        python manage.py migrate
+        python manage.py collectstatic --noinput
+        python manage.py runserver 0.0.0.0:8000 &
+        
+        # Wait for Django server to be ready
+        tools/wait-for-it.sh localhost:8000
+        
+        # Start niva_app service in background
+        python -m niva_app.app &
+        
+        # Start pipecat_agents service in background
+        python -m pipecat_agents.pipecat_agent_runner &
+        
+        # Wait for all background processes
+        wait
+      "
+    environment:
+      DJANGO_SETTINGS_MODULE: app.settings
+      POSTGRES_HOST: ${DB_HOST}       # AWS RDS endpoint
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_PORT: ${DB_PORT:-5432}
+      REDIS_HOST: ${REDIS_HOST}       # AWS ElastiCache endpoint
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_DB: ${REDIS_DB:-1}
+      DEBUG: False
+      # AWS Credentials for Secrets Manager
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-eu-central-1}
+    ports:
+      - 8000:8000
+    volumes:
+      - .:/app
+      - ./staticfiles:/app/staticfiles
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

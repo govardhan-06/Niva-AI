@@ -3,27 +3,78 @@ from django.core.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_404_NOT_FOUND
 
-from niva_app.api.common.views import OpenAPI
+from niva_app.api.common.views import BaseAPI
 from niva_app.services.student import (
     create_student,
     get_student,
     get_all_students,
     update_student,
     delete_student,
-    validate_student_data
+    validate_student_data,
+    associate_user_with_student,
+    get_student_by_user_id
 )
+from niva_app.models import Student
 from .serializers import (
     CreateStudentInputSerializer,
     GetStudentInputSerializer,
     GetAllStudentsInputSerializer,
     UpdateStudentInputSerializer,
-    DeleteStudentInputSerializer
+    DeleteStudentInputSerializer,
+    AssociateUserWithStudentInputSerializer,
+    GetStudentByUserInputSerializer
 )
 
 logger = logging.getLogger(__name__)
 
 
-class CreateStudent(OpenAPI):
+class ListAllStudents(BaseAPI):
+    """
+    List All Students API - Simple List
+    
+    GET endpoint to retrieve a simple list of all students with id and name.
+    This is a lightweight alternative to GetAllStudents for quick lookups.
+    
+    No request body required.
+    
+    Response:
+        students: [
+            {
+                id: UUID,
+                first_name: string,
+                last_name: string,
+                full_name: string
+            }
+        ]
+    """
+    
+    def get(self, request, *args, **kwargs):
+        try:
+            students = Student.objects.all()
+            
+            students_data = []
+            for student in students:
+                students_data.append({
+                    "id": str(student.id),
+                    "first_name": student.first_name,
+                    "last_name": student.last_name,
+                    "full_name": f"{student.first_name} {student.last_name}".strip()
+                })
+            
+            return Response(
+                {"students": students_data},
+                status=HTTP_200_OK,
+            )
+        
+        except Exception as e:
+            logger.error(f"Error listing students: {str(e)}")
+            return Response(
+                data={"error": "Failed to list students"},
+                status=HTTP_400_BAD_REQUEST
+            )
+
+
+class CreateStudent(BaseAPI):
     """
     Create Student API
 
@@ -122,7 +173,7 @@ class CreateStudent(OpenAPI):
             )
 
 
-class GetStudent(OpenAPI):
+class GetStudent(BaseAPI):
     """
     Get Student API
 
@@ -204,7 +255,7 @@ class GetStudent(OpenAPI):
             )
 
 
-class GetAllStudents(OpenAPI):
+class GetAllStudents(BaseAPI):
     """
     Get All Students API
 
@@ -290,7 +341,7 @@ class GetAllStudents(OpenAPI):
             )
 
 
-class UpdateStudent(OpenAPI):
+class UpdateStudent(BaseAPI):
     """
     Update Student API
 
@@ -397,7 +448,7 @@ class UpdateStudent(OpenAPI):
             )
 
 
-class DeleteStudent(OpenAPI):
+class DeleteStudent(BaseAPI):
     """
     Delete Student API
 
@@ -432,5 +483,141 @@ class DeleteStudent(OpenAPI):
             logger.error(f"Error deleting student: {str(e)}")
             return Response(
                 data={"error": "Failed to delete student"},
+                status=HTTP_400_BAD_REQUEST
+            )
+
+class AssociateUserWithStudent(BaseAPI):
+    """
+    Associate User with Student API
+
+    API to associate an existing user account with an existing student profile.
+
+    Request:
+        user_id: UUID (required)
+        student_id: UUID (required)
+
+    Response:
+        message: string
+        student: {
+            id: UUID,
+            first_name: string,
+            last_name: string,
+            email: string,
+            phone_number: string,
+            user_id: UUID
+        }
+    """
+    input_serializer_class = AssociateUserWithStudentInputSerializer
+
+    def post(self, request, *args, **kwargs):
+        data = self.validate_input_data()
+
+        try:
+            student = associate_user_with_student(
+                user_id=str(data["user_id"]),
+                student_id=str(data["student_id"])
+            )
+
+            student_data = {
+                "id": str(student.id),
+                "first_name": student.first_name,
+                "last_name": student.last_name,
+                "email": student.email,
+                "phone_number": student.phone_number,
+                "user_id": str(student.user.id) if student.user else None
+            }
+
+            return Response(
+                {
+                    "message": "User associated with student successfully",
+                    "student": student_data
+                },
+                status=HTTP_200_OK,
+            )
+
+        except ValidationError as e:
+            logger.error(f"Validation error: {str(e)}")
+            return Response(
+                data={"error": str(e)},
+                status=HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            logger.error(f"Error associating user with student: {str(e)}")
+            return Response(
+                data={"error": "Failed to associate user with student"},
+                status=HTTP_400_BAD_REQUEST
+            )
+
+
+class GetStudentByUser(BaseAPI):
+    """
+    Get Student by User API
+
+    API to get a student profile by user ID.
+
+    Request:
+        user_id: UUID
+
+    Response:
+        student: {
+            id: UUID,
+            first_name: string,
+            last_name: string,
+            gender: string,
+            date_of_birth: date,
+            email: string,
+            phone_number: string,
+            user_id: UUID,
+            courses: [...]
+        }
+    """
+    input_serializer_class = GetStudentByUserInputSerializer
+
+    def post(self, request, *args, **kwargs):
+        data = self.validate_input_data()
+
+        try:
+            student = get_student_by_user_id(str(data["user_id"]))
+            
+            if not student:
+                return Response(
+                    data={"error": "No student profile found for this user"},
+                    status=HTTP_404_NOT_FOUND
+                )
+
+            # Get associated courses
+            courses_data = []
+            for course in student.course.all():
+                courses_data.append({
+                    "id": str(course.id),
+                    "name": course.name,
+                    "description": course.description,
+                    "is_active": course.is_active,
+                    "language": course.language
+                })
+
+            student_data = {
+                "id": str(student.id),
+                "first_name": student.first_name,
+                "last_name": student.last_name,
+                "gender": student.gender,
+                "date_of_birth": student.date_of_birth.isoformat() if student.date_of_birth else None,
+                "email": student.email,
+                "phone_number": student.phone_number,
+                "user_id": str(student.user.id) if student.user else None,
+                "created_at": student.created_at.isoformat(),
+                "updated_at": student.updated_at.isoformat(),
+                "courses": courses_data,
+            }
+
+            return Response(
+                {"student": student_data},
+                status=HTTP_200_OK,
+            )
+
+        except Exception as e:
+            logger.error(f"Error getting student by user: {str(e)}")
+            return Response(
+                data={"error": "Failed to get student profile"},
                 status=HTTP_400_BAD_REQUEST
             )

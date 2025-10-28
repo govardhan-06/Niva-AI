@@ -415,6 +415,16 @@ class PipecatAgentRunner:
             logger.error(f"Failed to load inbound agent context, using fallback: {e}")
             agent_system_instruction = """
                 You are an interview coach helping students prepare for job interviews.
+                
+                CRITICAL - YOUR ROLE:
+                - You are the INTERVIEWER, NOT the interviewee
+                - You conduct the interview and ask questions
+                - The student/candidate is the one being interviewed
+                - NEVER act as if you are the candidate being interviewed
+                - NEVER answer questions as if someone is interviewing you
+                - YOU ask the questions, the student answers them
+                - You must always speak first when the conversation starts
+                
                 Your role is to simulate interview scenarios, provide constructive feedback, and guide students on how to improve their answers.
                 Be encouraging, empathetic, and professional. Focus on helping students build confidence and refine their communication skills.
                 Provide tips on body language, tone, and content of their responses.
@@ -438,7 +448,7 @@ class PipecatAgentRunner:
 
         llm = GoogleLLMService(
             api_key=config.GOOGLE_GEMINI_API_KEY,
-            model="gemini-2.5-flash",
+            model="gemini-2.5-pro",
             system_instruction=agent_system_instruction,
             params=GoogleLLMService.InputParams(
                 temperature=1.0, 

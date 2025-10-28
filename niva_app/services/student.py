@@ -17,7 +17,8 @@ def create_student(
     gender: str = "UNKNOWN",
     date_of_birth: Optional[str] = None,
     email: str = "",
-    course_ids: Optional[List[str]] = None
+    course_ids: Optional[List[str]] = None,
+    user_id: Optional[str] = None
 ) -> Student:
     """
     Create a new student.
@@ -30,6 +31,7 @@ def create_student(
         date_of_birth (str): Student's date of birth (optional)
         email (str): Student's email (optional)
         course_ids (List[str]): List of course IDs to associate with student
+        user_id (str): User ID to associate with student (optional)
 
     Returns:
         Student: The created student object
@@ -44,6 +46,16 @@ def create_student(
     if existing_student:
         raise ValidationError(f"Student with phone number {phone_number} already exists")
 
+    # If user_id provided, check if user already has a student profile
+    if user_id:
+        from niva_app.models.users import User
+        try:
+            user = User.objects.get(id=user_id)
+            if hasattr(user, 'student_profile') and user.student_profile:
+                raise ValidationError(f"User already has a student profile")
+        except User.DoesNotExist:
+            raise ValidationError(f"User with ID {user_id} does not exist")
+
     # Create the student
     student = Student.objects.create(
         first_name=first_name,
@@ -51,7 +63,8 @@ def create_student(
         gender=gender,
         date_of_birth=date_of_birth,
         email=email,
-        phone_number=phone_number
+        phone_number=phone_number,
+        user_id=user_id
     )
 
     # Associate with courses if provided
@@ -242,3 +255,66 @@ def validate_student_data(data: Dict[str, Any]) -> None:
         existing_courses = Course.objects.filter(id__in=course_ids)
         if existing_courses.count() != len(course_ids):
             raise ValidationError("One or more course IDs are invalid")
+
+
+@transaction.atomic
+def associate_user_with_student(user_id: str, student_id: str) -> Student:
+    """
+    Associate an existing user with an existing student.
+
+    Parameters:
+        user_id (str): User ID
+        student_id (str): Student ID
+
+    Returns:
+        Student: The updated student object
+
+    Raises:
+        ValidationError: If user or student not found, or if association already exists
+    """
+    from niva_app.models.users import User
+    
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        raise ValidationError(f"User with ID {user_id} does not exist")
+    
+    try:
+        student = Student.objects.get(id=student_id)
+    except Student.DoesNotExist:
+        raise ValidationError(f"Student with ID {student_id} does not exist")
+    
+    # Check if user already has a student profile
+    if hasattr(user, 'student_profile') and user.student_profile:
+        if user.student_profile.id == student.id:
+            logger.info(f"User {user.email} is already associated with student {student.id}")
+            return student
+        else:
+            raise ValidationError(f"User already has a different student profile")
+    
+    # Check if student already has a user
+    if student.user:
+        raise ValidationError(f"Student already has an associated user")
+    
+    # Associate user with student
+    student.user = user
+    student.save()
+    
+    logger.info(f"Associated user {user.email} with student {student.first_name} {student.last_name}")
+    return student
+
+
+def get_student_by_user_id(user_id: str) -> Optional[Student]:
+    """
+    Get a student by user ID.
+
+    Parameters:
+        user_id (str): User ID
+
+    Returns:
+        Optional[Student]: Student object if found, None otherwise
+    """
+    try:
+        return Student.objects.get(user_id=user_id)
+    except Student.DoesNotExist:
+        return None

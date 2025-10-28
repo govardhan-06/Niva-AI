@@ -299,7 +299,7 @@ class AgentCallProcessor:
             try:
                 if caller_number:
                     sanitized_phone = caller_number.replace("+", "").replace(" ", "").replace("-", "")
-                    room_name = f"qulander_{sanitized_phone}_{course_id}"
+                    room_name = f"niva_{sanitized_phone}_{course_id}"
                     
                     daily_service = DailyService()
                     await daily_service.delete_room(room_name)
@@ -494,7 +494,7 @@ class AgentCallProcessor:
             """
 
             response = gemini_client.models.generate_content(
-                model="gemini-2.5-flash",
+                model="gemini-2.5-pro",
                 contents=[prompt],
                 config={
                     "response_mime_type": "application/json",
@@ -673,7 +673,7 @@ class AgentCallProcessor:
         )
 
         response = gemini_client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-2.5-pro",
             contents=[prompt],
             config={
                 "response_mime_type": "application/json",
@@ -713,7 +713,7 @@ class AgentCallProcessor:
 
         try:
             response = gemini_client.models.generate_content(
-                model="gemini-2.5-flash",
+                model="gemini-2.5-pro",
                 contents=[prompt],
                 config={
                     "response_mime_type": "application/json",

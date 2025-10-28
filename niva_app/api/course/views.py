@@ -3,7 +3,7 @@ from django.core.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_404_NOT_FOUND
 
-from niva_app.api.common.views import OpenAPI
+from niva_app.api.common.views import BaseAPI
 from niva_app.services.course import (
     create_course,
     get_course,
@@ -12,6 +12,7 @@ from niva_app.services.course import (
     delete_course,
     validate_course_data
 )
+from niva_app.models import Course
 from .serializers import (
     CreateCourseInputSerializer,
     GetCourseInputSerializer,
@@ -23,7 +24,55 @@ from .serializers import (
 logger = logging.getLogger(__name__)
 
 
-class CreateCourse(OpenAPI):
+class ListAllCourses(BaseAPI):
+    """
+    List All Courses API - Simple List
+    
+    GET endpoint to retrieve a simple list of all courses with id and name.
+    This is a lightweight alternative to GetAllCourses for quick lookups.
+    
+    No request body required.
+    
+    Response:
+        courses: [
+            {
+                id: UUID,
+                name: string,
+                description: string,
+                is_active: boolean,
+                language: string
+            }
+        ]
+    """
+    
+    def get(self, request, *args, **kwargs):
+        try:
+            courses = Course.objects.all()
+            
+            courses_data = []
+            for course in courses:
+                courses_data.append({
+                    "id": str(course.id),
+                    "name": course.name,
+                    "description": course.description,
+                    "is_active": course.is_active,
+                    "language": course.language
+                })
+            
+            return Response(
+                {"courses": courses_data},
+                status=HTTP_200_OK,
+            )
+        
+        except Exception as e:
+            logger.error(f"Error listing courses: {str(e)}")
+            return Response(
+                data={"error": "Failed to list courses"},
+                status=HTTP_400_BAD_REQUEST
+            )
+
+
+class CreateCourse(BaseAPI):
     """
     Create Course API
 
@@ -131,7 +180,7 @@ class CreateCourse(OpenAPI):
             )
 
 
-class GetCourse(OpenAPI):
+class GetCourse(BaseAPI):
     """
     Get Course API
 
@@ -209,7 +258,7 @@ class GetCourse(OpenAPI):
             )
 
 
-class GetAllCourses(OpenAPI):
+class GetAllCourses(BaseAPI):
     """
     Get All Courses API
 
@@ -285,7 +334,7 @@ class GetAllCourses(OpenAPI):
             )
 
 
-class UpdateCourse(OpenAPI):
+class UpdateCourse(BaseAPI):
     """
     Update Course API
 
@@ -379,7 +428,7 @@ class UpdateCourse(OpenAPI):
             )
 
 
-class DeleteCourse(OpenAPI):
+class DeleteCourse(BaseAPI):
     """
     Delete Course API
 
