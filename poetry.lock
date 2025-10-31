@@ -1000,16 +1000,16 @@ test-randomorder = ["pytest-randomly"]
 
 [[package]]
 name = "daily-python"
-version = "0.19.9"
+version = "0.20.0"
 description = "Daily Client SDK for Python"
 optional = false
 python-versions = ">=3.7"
 groups = ["main"]
 files = [
-    {file = "daily_python-0.19.9-cp37-abi3-macosx_10_15_x86_64.whl", hash = "sha256:cbc558ad7d49e79b550bf7567b9ceae75e2864d4fcaf41c90377b620e38a2461"},
-    {file = "daily_python-0.19.9-cp37-abi3-macosx_11_0_arm64.whl", hash = "sha256:446bb9ee848d88bc68ca29a2216793c9b5ebaf5991bf604daf76f7c5a53d5919"},
-    {file = "daily_python-0.19.9-cp37-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:2facaf82b614404c642c70bbf0874fb045d8ad46400acb051470cd4df93cb4db"},
-    {file = "daily_python-0.19.9-cp37-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:ffc205efca7b47739efd358febab17577248c8db2ebc4d17d819307a83b9eefc"},
+    {file = "daily_python-0.20.0-cp37-abi3-macosx_10_15_x86_64.whl", hash = "sha256:7da3f1df8cd9ef7f7fcc96ce688348dc903f62d82b6dd155a53bc64b7a74f3a7"},
+    {file = "daily_python-0.20.0-cp37-abi3-macosx_11_0_arm64.whl", hash = "sha256:d02fd7b8c8079ceaa550ef23db052cdf70a8ffaf8ab6a8bc1a1e97bf0b939464"},
+    {file = "daily_python-0.20.0-cp37-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:a5c8718982c221dc18b41fb0692c9f8435f115f72e74994c94d3b9c6dad7c534"},
+    {file = "daily_python-0.20.0-cp37-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:ca9132aef1bdb5be663d1894b440dab1f998ebb3f45dfc31d44effabded4bc08"},
 ]
 
 [[package]]
@@ -1504,19 +1504,23 @@ grpc = ["grpcio (>=1.38.0,<2.0dev)", "grpcio-status (>=1.38.0,<2.0.dev0)"]
 
 [[package]]
 name = "google-cloud-speech"
-version = "2.32.0"
+version = "2.34.0"
 description = "Google Cloud Speech API client library"
 optional = false
 python-versions = ">=3.7"
 groups = ["main"]
 files = [
-    {file = "google_cloud_speech-2.32.0-py3-none-any.whl", hash = "sha256:537b279d8697fe5b5bc5f485f2d48a6b343fc76f73385b5776806c37bc5f8ea1"},
-    {file = "google_cloud_speech-2.32.0.tar.gz", hash = "sha256:89c2618b131d310c6c00e7c04d290ffa9a5d68c20191030766a7737850f04e77"},
+    {file = "google_cloud_speech-2.34.0-py3-none-any.whl", hash = "sha256:cc0c6c0fda9306fee01c998bc207b68f71e0a3247121a5a3a27daabacd3a8c98"},
+    {file = "google_cloud_speech-2.34.0.tar.gz", hash = "sha256:2a7bffd84f134b9b70c9f11cbb5088c534f92be149d71d9073d0b9dd3a431acf"},
 ]
 
 [package.dependencies]
 google-api-core = {version = ">=1.34.1,<2.0.dev0 || >=2.11.dev0,<3.0.0", extras = ["grpc"]}
 google-auth = ">=2.14.1,<2.24.0 || >2.24.0,<2.25.0 || >2.25.0,<3.0.0"
+grpcio = [
+    {version = ">=1.33.2,<2.0.0"},
+    {version = ">=1.75.1,<2.0.0", markers = "python_version >= \"3.14\""},
+]
 proto-plus = [
     {version = ">=1.22.3,<2.0.0"},
     {version = ">=1.25.0,<2.0.0", markers = "python_version >= \"3.13\""},
@@ -1549,19 +1553,23 @@ tracing = ["opentelemetry-api (>=1.1.0)"]
 
 [[package]]
 name = "google-cloud-texttospeech"
-version = "2.26.0"
+version = "2.33.0"
 description = "Google Cloud Texttospeech API client library"
 optional = false
 python-versions = ">=3.7"
 groups = ["main"]
 files = [
-    {file = "google_cloud_texttospeech-2.26.0-py3-none-any.whl", hash = "sha256:837835aadeb261983d139ef1c5e60c99f80199e22330bf4f62e217360b9e07b8"},
-    {file = "google_cloud_texttospeech-2.26.0.tar.gz", hash = "sha256:43af1b88a6b9becde69a3bbf8aa80cdfa5f12f8999e56bcf9dec374354ed7f6a"},
+    {file = "google_cloud_texttospeech-2.33.0-py3-none-any.whl", hash = "sha256:a97273fc0e32972f8d262a9cb4a134eb9f1300518cae3612ff80053a5eef1f44"},
+    {file = "google_cloud_texttospeech-2.33.0.tar.gz", hash = "sha256:311157b74210cc4777f148ab6a62bc2cc24b3f52a7dc106c0a0223c1830b618f"},
 ]
 
 [package.dependencies]
 google-api-core = {version = ">=1.34.1,<2.0.dev0 || >=2.11.dev0,<3.0.0", extras = ["grpc"]}
 google-auth = ">=2.14.1,<2.24.0 || >2.24.0,<2.25.0 || >2.25.0,<3.0.0"
+grpcio = [
+    {version = ">=1.33.2,<2.0.0"},
+    {version = ">=1.75.1,<2.0.0", markers = "python_version >= \"3.14\""},
+]
 proto-plus = [
     {version = ">=1.22.3,<2.0.0"},
     {version = ">=1.25.0,<2.0.0", markers = "python_version >= \"3.13\""},
@@ -1617,28 +1625,29 @@ testing = ["pytest"]
 
 [[package]]
 name = "google-genai"
-version = "1.24.0"
+version = "1.47.0"
 description = "GenAI Python SDK"
 optional = false
 python-versions = ">=3.9"
 groups = ["main"]
 files = [
-    {file = "google_genai-1.24.0-py3-none-any.whl", hash = "sha256:98be8c51632576289ecc33cd84bcdaf4356ef0bef04ac7578660c49175af22b9"},
-    {file = "google_genai-1.24.0.tar.gz", hash = "sha256:bc896e30ad26d05a2af3d17c2ba10ea214a94f1c0cdb93d5c004dc038774e75a"},
+    {file = "google_genai-1.47.0-py3-none-any.whl", hash = "sha256:e3851237556cbdec96007d8028b4b1f2425cdc5c099a8dc36b72a57e42821b60"},
+    {file = "google_genai-1.47.0.tar.gz", hash = "sha256:ecece00d0a04e6739ea76cc8dad82ec9593d9380aaabef078990e60574e5bf59"},
 ]
 
 [package.dependencies]
 anyio = ">=4.8.0,<5.0.0"
 google-auth = ">=2.14.1,<3.0.0"
 httpx = ">=0.28.1,<1.0.0"
-pydantic = ">=2.0.0,<3.0.0"
+pydantic = ">=2.9.0,<3.0.0"
 requests = ">=2.28.1,<3.0.0"
-tenacity = ">=8.2.3,<9.0.0"
+tenacity = ">=8.2.3,<9.2.0"
 typing-extensions = ">=4.11.0,<5.0.0"
 websockets = ">=13.0.0,<15.1.0"
 
 [package.extras]
 aiohttp = ["aiohttp (<4.0.0)"]
+local-tokenizer = ["protobuf", "sentencepiece (>=0.2.0)"]
 
 [[package]]
 name = "google-resumable-media"
@@ -1684,7 +1693,7 @@ description = "Lightweight in-process concurrent programming"
 optional = false
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "python_version < \"3.14\" and (platform_machine == \"aarch64\" or platform_machine == \"ppc64le\" or platform_machine == \"x86_64\" or platform_machine == \"amd64\" or platform_machine == \"AMD64\" or platform_machine == \"win32\" or platform_machine == \"WIN32\")"
+markers = "python_version <= \"3.13\" and (platform_machine == \"aarch64\" or platform_machine == \"ppc64le\" or platform_machine == \"x86_64\" or platform_machine == \"amd64\" or platform_machine == \"AMD64\" or platform_machine == \"win32\" or platform_machine == \"WIN32\")"
 files = [
     {file = "greenlet-3.2.2-cp310-cp310-macosx_11_0_universal2.whl", hash = "sha256:c49e9f7c6f625507ed83a7485366b46cbe325717c60837f7244fc99ba16ba9d6"},
     {file = "greenlet-3.2.2-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:c3cc1a3ed00ecfea8932477f729a9f616ad7347a5e55d50929efa50a86cb7be7"},
@@ -1754,6 +1763,7 @@ description = "HTTP/2-based RPC framework"
 optional = false
 python-versions = ">=3.9"
 groups = ["main"]
+markers = "python_version <= \"3.13\""
 files = [
     {file = "grpcio-1.74.0-cp310-cp310-linux_armv7l.whl", hash = "sha256:85bd5cdf4ed7b2d6438871adf6afff9af7096486fcf51818a81b77ef4dd30907"},
     {file = "grpcio-1.74.0-cp310-cp310-macosx_11_0_universal2.whl", hash = "sha256:68c8ebcca945efff9d86d8d6d7bfb0841cf0071024417e2d7f45c5e46b5b08eb"},
@@ -1810,6 +1820,84 @@ files = [
 
 [package.extras]
 protobuf = ["grpcio-tools (>=1.74.0)"]
+
+[[package]]
+name = "grpcio"
+version = "1.76.0"
+description = "HTTP/2-based RPC framework"
+optional = false
+python-versions = ">=3.9"
+groups = ["main"]
+markers = "python_version >= \"3.14\""
+files = [
+    {file = "grpcio-1.76.0-cp310-cp310-linux_armv7l.whl", hash = "sha256:65a20de41e85648e00305c1bb09a3598f840422e522277641145a32d42dcefcc"},
+    {file = "grpcio-1.76.0-cp310-cp310-macosx_11_0_universal2.whl", hash = "sha256:40ad3afe81676fd9ec6d9d406eda00933f218038433980aa19d401490e46ecde"},
+    {file = "grpcio-1.76.0-cp310-cp310-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:035d90bc79eaa4bed83f524331d55e35820725c9fbb00ffa1904d5550ed7ede3"},
+    {file = "grpcio-1.76.0-cp310-cp310-manylinux2014_i686.manylinux_2_17_i686.whl", hash = "sha256:4215d3a102bd95e2e11b5395c78562967959824156af11fa93d18fdd18050990"},
+    {file = "grpcio-1.76.0-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:49ce47231818806067aea3324d4bf13825b658ad662d3b25fada0bdad9b8a6af"},
+    {file = "grpcio-1.76.0-cp310-cp310-musllinux_1_2_aarch64.whl", hash = "sha256:8cc3309d8e08fd79089e13ed4819d0af72aa935dd8f435a195fd152796752ff2"},
+    {file = "grpcio-1.76.0-cp310-cp310-musllinux_1_2_i686.whl", hash = "sha256:971fd5a1d6e62e00d945423a567e42eb1fa678ba89072832185ca836a94daaa6"},
+    {file = "grpcio-1.76.0-cp310-cp310-musllinux_1_2_x86_64.whl", hash = "sha256:9d9adda641db7207e800a7f089068f6f645959f2df27e870ee81d44701dd9db3"},
+    {file = "grpcio-1.76.0-cp310-cp310-win32.whl", hash = "sha256:063065249d9e7e0782d03d2bca50787f53bd0fb89a67de9a7b521c4a01f1989b"},
+    {file = "grpcio-1.76.0-cp310-cp310-win_amd64.whl", hash = "sha256:a6ae758eb08088d36812dd5d9af7a9859c05b1e0f714470ea243694b49278e7b"},
+    {file = "grpcio-1.76.0-cp311-cp311-linux_armv7l.whl", hash = "sha256:2e1743fbd7f5fa713a1b0a8ac8ebabf0ec980b5d8809ec358d488e273b9cf02a"},
+    {file = "grpcio-1.76.0-cp311-cp311-macosx_11_0_universal2.whl", hash = "sha256:a8c2cf1209497cf659a667d7dea88985e834c24b7c3b605e6254cbb5076d985c"},
+    {file = "grpcio-1.76.0-cp311-cp311-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:08caea849a9d3c71a542827d6df9d5a69067b0a1efbea8a855633ff5d9571465"},
+    {file = "grpcio-1.76.0-cp311-cp311-manylinux2014_i686.manylinux_2_17_i686.whl", hash = "sha256:f0e34c2079d47ae9f6188211db9e777c619a21d4faba6977774e8fa43b085e48"},
+    {file = "grpcio-1.76.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:8843114c0cfce61b40ad48df65abcfc00d4dba82eae8718fab5352390848c5da"},
+    {file = "grpcio-1.76.0-cp311-cp311-musllinux_1_2_aarch64.whl", hash = "sha256:8eddfb4d203a237da6f3cc8a540dad0517d274b5a1e9e636fd8d2c79b5c1d397"},
+    {file = "grpcio-1.76.0-cp311-cp311-musllinux_1_2_i686.whl", hash = "sha256:32483fe2aab2c3794101c2a159070584e5db11d0aa091b2c0ea9c4fc43d0d749"},
+    {file = "grpcio-1.76.0-cp311-cp311-musllinux_1_2_x86_64.whl", hash = "sha256:dcfe41187da8992c5f40aa8c5ec086fa3672834d2be57a32384c08d5a05b4c00"},
+    {file = "grpcio-1.76.0-cp311-cp311-win32.whl", hash = "sha256:2107b0c024d1b35f4083f11245c0e23846ae64d02f40b2b226684840260ed054"},
+    {file = "grpcio-1.76.0-cp311-cp311-win_amd64.whl", hash = "sha256:522175aba7af9113c48ec10cc471b9b9bd4f6ceb36aeb4544a8e2c80ed9d252d"},
+    {file = "grpcio-1.76.0-cp312-cp312-linux_armv7l.whl", hash = "sha256:81fd9652b37b36f16138611c7e884eb82e0cec137c40d3ef7c3f9b3ed00f6ed8"},
+    {file = "grpcio-1.76.0-cp312-cp312-macosx_11_0_universal2.whl", hash = "sha256:04bbe1bfe3a68bbfd4e52402ab7d4eb59d72d02647ae2042204326cf4bbad280"},
+    {file = "grpcio-1.76.0-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:d388087771c837cdb6515539f43b9d4bf0b0f23593a24054ac16f7a960be16f4"},
+    {file = "grpcio-1.76.0-cp312-cp312-manylinux2014_i686.manylinux_2_17_i686.whl", hash = "sha256:9f8f757bebaaea112c00dba718fc0d3260052ce714e25804a03f93f5d1c6cc11"},
+    {file = "grpcio-1.76.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:980a846182ce88c4f2f7e2c22c56aefd515daeb36149d1c897f83cf57999e0b6"},
+    {file = "grpcio-1.76.0-cp312-cp312-musllinux_1_2_aarch64.whl", hash = "sha256:f92f88e6c033db65a5ae3d97905c8fea9c725b63e28d5a75cb73b49bda5024d8"},
+    {file = "grpcio-1.76.0-cp312-cp312-musllinux_1_2_i686.whl", hash = "sha256:4baf3cbe2f0be3289eb68ac8ae771156971848bb8aaff60bad42005539431980"},
+    {file = "grpcio-1.76.0-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:615ba64c208aaceb5ec83bfdce7728b80bfeb8be97562944836a7a0a9647d882"},
+    {file = "grpcio-1.76.0-cp312-cp312-win32.whl", hash = "sha256:45d59a649a82df5718fd9527ce775fd66d1af35e6d31abdcdc906a49c6822958"},
+    {file = "grpcio-1.76.0-cp312-cp312-win_amd64.whl", hash = "sha256:c088e7a90b6017307f423efbb9d1ba97a22aa2170876223f9709e9d1de0b5347"},
+    {file = "grpcio-1.76.0-cp313-cp313-linux_armv7l.whl", hash = "sha256:26ef06c73eb53267c2b319f43e6634c7556ea37672029241a056629af27c10e2"},
+    {file = "grpcio-1.76.0-cp313-cp313-macosx_11_0_universal2.whl", hash = "sha256:45e0111e73f43f735d70786557dc38141185072d7ff8dc1829d6a77ac1471468"},
+    {file = "grpcio-1.76.0-cp313-cp313-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:83d57312a58dcfe2a3a0f9d1389b299438909a02db60e2f2ea2ae2d8034909d3"},
+    {file = "grpcio-1.76.0-cp313-cp313-manylinux2014_i686.manylinux_2_17_i686.whl", hash = "sha256:3e2a27c89eb9ac3d81ec8835e12414d73536c6e620355d65102503064a4ed6eb"},
+    {file = "grpcio-1.76.0-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:61f69297cba3950a524f61c7c8ee12e55c486cb5f7db47ff9dcee33da6f0d3ae"},
+    {file = "grpcio-1.76.0-cp313-cp313-musllinux_1_2_aarch64.whl", hash = "sha256:6a15c17af8839b6801d554263c546c69c4d7718ad4321e3166175b37eaacca77"},
+    {file = "grpcio-1.76.0-cp313-cp313-musllinux_1_2_i686.whl", hash = "sha256:25a18e9810fbc7e7f03ec2516addc116a957f8cbb8cbc95ccc80faa072743d03"},
+    {file = "grpcio-1.76.0-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:931091142fd8cc14edccc0845a79248bc155425eee9a98b2db2ea4f00a235a42"},
+    {file = "grpcio-1.76.0-cp313-cp313-win32.whl", hash = "sha256:5e8571632780e08526f118f74170ad8d50fb0a48c23a746bef2a6ebade3abd6f"},
+    {file = "grpcio-1.76.0-cp313-cp313-win_amd64.whl", hash = "sha256:f9f7bd5faab55f47231ad8dba7787866b69f5e93bc306e3915606779bbfb4ba8"},
+    {file = "grpcio-1.76.0-cp314-cp314-linux_armv7l.whl", hash = "sha256:ff8a59ea85a1f2191a0ffcc61298c571bc566332f82e5f5be1b83c9d8e668a62"},
+    {file = "grpcio-1.76.0-cp314-cp314-macosx_11_0_universal2.whl", hash = "sha256:06c3d6b076e7b593905d04fdba6a0525711b3466f43b3400266f04ff735de0cd"},
+    {file = "grpcio-1.76.0-cp314-cp314-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:fd5ef5932f6475c436c4a55e4336ebbe47bd3272be04964a03d316bbf4afbcbc"},
+    {file = "grpcio-1.76.0-cp314-cp314-manylinux2014_i686.manylinux_2_17_i686.whl", hash = "sha256:b331680e46239e090f5b3cead313cc772f6caa7d0fc8de349337563125361a4a"},
+    {file = "grpcio-1.76.0-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:2229ae655ec4e8999599469559e97630185fdd53ae1e8997d147b7c9b2b72cba"},
+    {file = "grpcio-1.76.0-cp314-cp314-musllinux_1_2_aarch64.whl", hash = "sha256:490fa6d203992c47c7b9e4a9d39003a0c2bcc1c9aa3c058730884bbbb0ee9f09"},
+    {file = "grpcio-1.76.0-cp314-cp314-musllinux_1_2_i686.whl", hash = "sha256:479496325ce554792dba6548fae3df31a72cef7bad71ca2e12b0e58f9b336bfc"},
+    {file = "grpcio-1.76.0-cp314-cp314-musllinux_1_2_x86_64.whl", hash = "sha256:1c9b93f79f48b03ada57ea24725d83a30284a012ec27eab2cf7e50a550cbbbcc"},
+    {file = "grpcio-1.76.0-cp314-cp314-win32.whl", hash = "sha256:747fa73efa9b8b1488a95d0ba1039c8e2dca0f741612d80415b1e1c560febf4e"},
+    {file = "grpcio-1.76.0-cp314-cp314-win_amd64.whl", hash = "sha256:922fa70ba549fce362d2e2871ab542082d66e2aaf0c19480ea453905b01f384e"},
+    {file = "grpcio-1.76.0-cp39-cp39-linux_armv7l.whl", hash = "sha256:8ebe63ee5f8fa4296b1b8cfc743f870d10e902ca18afc65c68cf46fd39bb0783"},
+    {file = "grpcio-1.76.0-cp39-cp39-macosx_11_0_universal2.whl", hash = "sha256:3bf0f392c0b806905ed174dcd8bdd5e418a40d5567a05615a030a5aeddea692d"},
+    {file = "grpcio-1.76.0-cp39-cp39-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:0b7604868b38c1bfd5cf72d768aedd7db41d78cb6a4a18585e33fb0f9f2363fd"},
+    {file = "grpcio-1.76.0-cp39-cp39-manylinux2014_i686.manylinux_2_17_i686.whl", hash = "sha256:e6d1db20594d9daba22f90da738b1a0441a7427552cc6e2e3d1297aeddc00378"},
+    {file = "grpcio-1.76.0-cp39-cp39-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:d099566accf23d21037f18a2a63d323075bebace807742e4b0ac210971d4dd70"},
+    {file = "grpcio-1.76.0-cp39-cp39-musllinux_1_2_aarch64.whl", hash = "sha256:ebea5cc3aa8ea72e04df9913492f9a96d9348db876f9dda3ad729cfedf7ac416"},
+    {file = "grpcio-1.76.0-cp39-cp39-musllinux_1_2_i686.whl", hash = "sha256:0c37db8606c258e2ee0c56b78c62fc9dee0e901b5dbdcf816c2dd4ad652b8b0c"},
+    {file = "grpcio-1.76.0-cp39-cp39-musllinux_1_2_x86_64.whl", hash = "sha256:ebebf83299b0cb1721a8859ea98f3a77811e35dce7609c5c963b9ad90728f886"},
+    {file = "grpcio-1.76.0-cp39-cp39-win32.whl", hash = "sha256:0aaa82d0813fd4c8e589fac9b65d7dd88702555f702fb10417f96e2a2a6d4c0f"},
+    {file = "grpcio-1.76.0-cp39-cp39-win_amd64.whl", hash = "sha256:acab0277c40eff7143c2323190ea57b9ee5fd353d8190ee9652369fae735668a"},
+    {file = "grpcio-1.76.0.tar.gz", hash = "sha256:7be78388d6da1a25c0d5ec506523db58b18be22d9c37d8d3a32c08be4987bd73"},
+]
+
+[package.dependencies]
+typing-extensions = ">=4.12,<5.0"
+
+[package.extras]
+protobuf = ["grpcio-tools (>=1.76.0)"]
 
 [[package]]
 name = "grpcio-status"
@@ -3152,14 +3240,14 @@ xmp = ["defusedxml"]
 
 [[package]]
 name = "pipecat-ai"
-version = "0.0.85"
+version = "0.0.91"
 description = "An open source framework for voice (and multimodal) assistants"
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "pipecat_ai-0.0.85-py3-none-any.whl", hash = "sha256:24088e86f917860e66bfc6345c261a4da733e1221af10c28180b86cefe6be24a"},
-    {file = "pipecat_ai-0.0.85.tar.gz", hash = "sha256:be755dae2fb74057bfa6060c0e58faaa69698ba25bc57c3639f4bb4f57892ea7"},
+    {file = "pipecat_ai-0.0.91-py3-none-any.whl", hash = "sha256:2f70f22a4625d855ee5742cc7d654ea3ec7837fae9de3bd5cdea77a550080d14"},
+    {file = "pipecat_ai-0.0.91.tar.gz", hash = "sha256:a21ce6fd062ffa4d4944e1a479418e3e1626429e346f077ff185da134c4e9bf3"},
 ]
 
 [package.dependencies]
@@ -3167,18 +3255,18 @@ aioboto3 = {version = ">=15.0.0,<15.1.0", optional = true, markers = "extra == \
 aiofiles = ">=24.1.0,<25"
 aiohttp = ">=3.11.12,<4"
 audioop-lts = {version = ">=0.2.1,<0.3.0", markers = "python_version >= \"3.13\""}
-daily-python = {version = ">=0.19.9,<0.20.0", optional = true, markers = "extra == \"daily\""}
+daily-python = {version = ">=0.20.0,<0.21.0", optional = true, markers = "extra == \"daily\""}
 deepgram-sdk = {version = ">=4.7.0,<4.8.0", optional = true, markers = "extra == \"deepgram\""}
 docstring_parser = ">=0.16,<1.0"
-google-cloud-speech = {version = ">=2.32.0,<2.33.0", optional = true, markers = "extra == \"google\""}
-google-cloud-texttospeech = {version = ">=2.26.0,<2.27.0", optional = true, markers = "extra == \"google\""}
-google-genai = {version = ">=1.24.0,<1.25.0", optional = true, markers = "extra == \"google\""}
+google-cloud-speech = {version = ">=2.33.0,<3", optional = true, markers = "extra == \"google\""}
+google-cloud-texttospeech = {version = ">=2.31.0,<3", optional = true, markers = "extra == \"google\""}
+google-genai = {version = ">=1.41.0,<2", optional = true, markers = "extra == \"google\""}
 loguru = ">=0.7.3,<0.8.0"
 Markdown = ">=3.7,<4"
 nltk = ">=3.9.1,<4"
 numba = "0.61.2"
 numpy = ">=1.26.4,<3"
-openai = ">=1.74.0,<=1.99.1"
+openai = ">=1.74.0,<3"
 Pillow = ">=11.1.0,<12"
 protobuf = ">=5.29.3,<5.30.0"
 pydantic = ">=2.10.6,<3"
@@ -3186,58 +3274,61 @@ pyloudnorm = ">=0.1.1,<0.2.0"
 resampy = ">=0.4.3,<0.5.0"
 soxr = ">=0.5.0,<0.6.0"
 wait_for2 = {version = ">=0.4.1", markers = "python_version < \"3.12\""}
-websockets = {version = ">=13.1,<15.0", optional = true, markers = "extra == \"aws\" or extra == \"google\""}
+websockets = {version = ">=13.1,<16.0", optional = true, markers = "extra == \"websockets-base\""}
 
 [package.extras]
 aic = ["aic-sdk (>=1.0.1,<1.1.0)"]
 anthropic = ["anthropic (>=0.49.0,<0.50.0)"]
-assemblyai = ["websockets (>=13.1,<15.0)"]
-asyncai = ["websockets (>=13.1,<15.0)"]
-aws = ["aioboto3 (>=15.0.0,<15.1.0)", "websockets (>=13.1,<15.0)"]
-aws-nova-sonic = ["aws_sdk_bedrock_runtime (>=0.0.2,<0.1.0) ; python_version >= \"3.12\""]
+assemblyai = ["pipecat-ai[websockets-base]"]
+asyncai = ["pipecat-ai[websockets-base]"]
+aws = ["aioboto3 (>=15.0.0,<15.1.0)", "pipecat-ai[websockets-base]"]
+aws-nova-sonic = ["aws_sdk_bedrock_runtime (>=0.1.0,<0.2.0) ; python_version >= \"3.12\""]
 azure = ["azure-cognitiveservices-speech (>=1.42.0,<1.43.0)"]
-cartesia = ["cartesia (>=2.0.3,<2.1.0)", "websockets (>=13.1,<15.0)"]
-daily = ["daily-python (>=0.19.9,<0.20.0)"]
+cartesia = ["cartesia (>=2.0.3,<2.1.0)", "pipecat-ai[websockets-base]"]
+daily = ["daily-python (>=0.20.0,<0.21.0)"]
 deepgram = ["deepgram-sdk (>=4.7.0,<4.8.0)"]
-elevenlabs = ["websockets (>=13.1,<15.0)"]
+elevenlabs = ["pipecat-ai[websockets-base]"]
 fal = ["fal-client (>=0.5.9,<0.6.0)"]
-fish = ["ormsgpack (>=1.7.0,<1.8.0)", "websockets (>=13.1,<15.0)"]
-gladia = ["websockets (>=13.1,<15.0)"]
-google = ["google-cloud-speech (>=2.32.0,<2.33.0)", "google-cloud-texttospeech (>=2.26.0,<2.27.0)", "google-genai (>=1.24.0,<1.25.0)", "websockets (>=13.1,<15.0)"]
+fish = ["ormsgpack (>=1.7.0,<1.8.0)", "pipecat-ai[websockets-base]"]
+gladia = ["pipecat-ai[websockets-base]"]
+google = ["google-cloud-speech (>=2.33.0,<3)", "google-cloud-texttospeech (>=2.31.0,<3)", "google-genai (>=1.41.0,<2)", "pipecat-ai[websockets-base]"]
 groq = ["groq (>=0.23.0,<0.24.0)"]
 gstreamer = ["pygobject (>=3.50.0,<3.51.0)"]
-heygen = ["livekit (>=0.22.0)", "websockets (>=13.1,<15.0)"]
+heygen = ["livekit (>=1.0.13)", "pipecat-ai[websockets-base]"]
+hume = ["hume (>=0.11.2)"]
 koala = ["pvkoala (>=2.0.3,<2.1.0)"]
 krisp = ["pipecat-ai-krisp (>=0.4.0,<0.5.0)"]
 langchain = ["langchain (>=0.3.20,<0.4.0)", "langchain-community (>=0.3.20,<0.4.0)", "langchain-openai (>=0.3.9,<0.4.0)"]
-livekit = ["livekit (>=0.22.0,<0.23.0)", "livekit-api (>=0.8.2,<0.9.0)", "tenacity (>=8.2.3,<10.0.0)"]
-lmnt = ["websockets (>=13.1,<15.0)"]
+livekit = ["livekit (>=1.0.13,<1.1.0)", "livekit-api (>=1.0.5,<1.1.0)", "tenacity (>=8.2.3,<10.0.0)"]
+lmnt = ["pipecat-ai[websockets-base]"]
 local = ["pyaudio (>=0.2.14,<0.3.0)"]
 local-smart-turn = ["coremltools (>=8.0)", "torch (>=2.5.0,<3)", "torchaudio (>=2.5.0,<3)", "transformers"]
-local-smart-turn-v3 = ["onnxruntime (>=1.20.1,<2)", "torch (>=2.5.0,<3)", "torchaudio (>=2.5.0,<3)", "transformers"]
-mcp = ["mcp[cli] (>=1.9.4,<1.10.0)"]
+local-smart-turn-v3 = ["onnxruntime (>=1.20.1,<2)", "transformers"]
+mcp = ["mcp[cli] (>=1.11.0,<2)"]
 mem0 = ["mem0ai (>=0.1.94,<0.2.0)"]
 mlx-whisper = ["mlx-whisper (>=0.4.2,<0.5.0)"]
 moondream = ["accelerate (>=1.10.0,<1.11.0)", "einops (>=0.8.0,<0.9.0)", "pyvips[binary] (>=3.0.0,<3.1.0)", "timm (>=1.0.13,<1.1.0)", "transformers (>=4.48.0)"]
-neuphonic = ["websockets (>=13.1,<15.0)"]
+neuphonic = ["pipecat-ai[websockets-base]"]
 noisereduce = ["noisereduce (>=3.0.3,<3.1.0)"]
-openai = ["websockets (>=13.1,<15.0)"]
-openpipe = ["openpipe (>=4.50.0,<4.51.0)"]
-playht = ["websockets (>=13.1,<15.0)"]
-rime = ["websockets (>=13.1,<15.0)"]
+openai = ["pipecat-ai[websockets-base]"]
+openpipe = ["openpipe (>=4.50.0,<6)"]
+playht = ["pipecat-ai[websockets-base]"]
+rime = ["pipecat-ai[websockets-base]"]
 riva = ["nvidia-riva-client (>=2.21.1,<2.22.0)"]
 runner = ["fastapi (>=0.115.6,<0.117.0)", "pipecat-ai-small-webrtc-prebuilt (>=1.0.0)", "python-dotenv (>=1.0.0,<2.0.0)", "uvicorn (>=0.32.0,<1.0.0)"]
-sarvam = ["websockets (>=13.1,<15.0)"]
-sentry = ["sentry-sdk (>=2.23.1,<2.24.0)"]
+sarvam = ["pipecat-ai[websockets-base]"]
+sentry = ["sentry-sdk (>=2.28.0,<3)"]
 silero = ["onnxruntime (>=1.20.1,<2)"]
 simli = ["simli-ai (>=0.1.10,<0.2.0)"]
-soniox = ["websockets (>=13.1,<15.0)"]
+soniox = ["pipecat-ai[websockets-base]"]
 soundfile = ["soundfile (>=0.13.0,<0.14.0)"]
-speechmatics = ["speechmatics-rt (>=0.4.0)"]
+speechmatics = ["speechmatics-rt (>=0.5.0)"]
+strands = ["strands-agents (>=1.9.1,<2)"]
 tracing = ["opentelemetry-api (>=1.33.0)", "opentelemetry-instrumentation (>=0.54b0)", "opentelemetry-sdk (>=1.33.0)"]
 ultravox = ["transformers (>=4.48.0)", "vllm (>=0.9.0)"]
-webrtc = ["aiortc (>=1.11.0,<1.12.0)", "opencv-python (>=4.11.0.86,<4.12.0.0)"]
-websocket = ["fastapi (>=0.115.6,<0.117.0)", "websockets (>=13.1,<15.0)"]
+webrtc = ["aiortc (>=1.13.0,<2)", "opencv-python (>=4.11.0.86,<5)"]
+websocket = ["fastapi (>=0.115.6,<0.117.0)", "pipecat-ai[websockets-base]"]
+websockets-base = ["websockets (>=13.1,<16.0)"]
 whisper = ["faster-whisper (>=1.1.1,<1.2.0)"]
 
 [[package]]
@@ -5154,4 +5245,4 @@ propcache = ">=0.2.1"
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.11"
-content-hash = "a6369995349935f6734d276b73c63be2912b4cb4bcd808027851e78a01140ba1"
+content-hash = "8c70e629012a1db6927d32554371ea6eac2ac99df54fdabde109d2e7c63ac76f"

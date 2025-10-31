@@ -200,3 +200,41 @@ class LoginView(OpenAPI):
             data=response,
             status=HTTP_200_OK,
         )
+
+
+class UserData(BaseAPI):
+    """
+    Get Current User Data API
+
+    API to get the current authenticated user's data.
+
+    Request:
+        None (requires authentication token)
+
+    Response:
+        message: string
+        user: {
+            id: UUID,
+            email: string,
+            username: string,
+            role: string
+        }
+    """
+
+    def get(self, request, *args, **kwargs):
+        user = self.get_user()
+        
+        user_data = {
+            "id": str(user.id),
+            "email": user.email,
+            "username": user.username,
+            "role": user.role.name if user.role else None
+        }
+
+        return Response(
+            data={
+                "message": "User data retrieved successfully",
+                "user": user_data
+            },
+            status=HTTP_200_OK,
+        )

@@ -11,7 +11,7 @@ django = "5.2.1"
 django-cors-headers = "4.7.0"
 djangorestframework = "3.16.0"
 aiohttp = "3.11.18"
-pipecat-ai = {version = "^0.0.85", extras = ["daily", "google", "aws", "deepgram"]}
+pipecat-ai = {version = "^0.0.91", extras = ["daily", "google", "aws", "deepgram"]}
 celery = "5.5.2"
 redis = "6.1.0"
 psycopg2-binary = "2.9.10"

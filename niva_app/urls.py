@@ -4,6 +4,7 @@ from uuid import UUID
 from niva_app.api.authentication.views import (
     CreateUser,
     LoginView,
+    UserData,
 )
 
 from niva_app.api.agents.views import (
@@ -48,6 +49,7 @@ from niva_app.api.course.views import (
 from niva_app.api.feedback.views import (
     GetFeedback,
     GetStudentFeedbacks,
+    GetFeedbacksByUserId,
 )
 
 from niva_app.api.student.views import (
@@ -65,6 +67,7 @@ from niva_app.api.student.views import (
 auth_routes = [
     path("register/", CreateUser.as_view(), name="register"),
     path("login/", LoginView.as_view(), name="login"),
+    path("user/data/", UserData.as_view(), name="user-data"),
 ]
 
 # Agent routes
@@ -116,6 +119,7 @@ course_routes = [
 feedback_routes = [
     path('get/', GetFeedback.as_view(), name='get-feedback'),
     path('student/', GetStudentFeedbacks.as_view(), name='get-student-feedbacks'),
+    path('user/', GetFeedbacksByUserId.as_view(), name='get-feedbacks-by-user-id'),
 ]
 
 # Student routes

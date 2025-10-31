@@ -30,6 +30,7 @@ async def interview_progress_tracked(
     flow_manager: FlowManager
 ) -> Tuple[FlowResult, NodeConfig]:
     """Track interview progress and responses naturally."""
+    print("Interview progress tracked")
     student_name = args.get("student_name", "Student")
     topic_discussed = args.get("topic_discussed", "")
     response_quality = args.get("response_quality", "good")
@@ -65,6 +66,7 @@ async def interview_completed(
     flow_manager: FlowManager
 ) -> Tuple[FlowResult, NodeConfig]:
     """Complete the interview and save final assessment."""
+    print("Interview completed handler")
     overall_assessment = args.get("overall_assessment", "positive")
     key_observations = args.get("key_observations", "")
     interview_summary = args.get("interview_summary", "")
@@ -115,6 +117,7 @@ async def interview_completed(
 # Simplified node creation functions
 def create_natural_conversation_node() -> NodeConfig:
     """Create a natural conversation node that allows free-flowing dialogue."""
+    print("Creating natural conversation node")
     return NodeConfig(
         name="natural_conversation",
         task_messages=[
@@ -193,6 +196,8 @@ If you feel you've gathered enough information or the student seems ready to wra
 
 def create_welcome_node() -> NodeConfig:
     """Create a welcoming, natural start to the interview."""
+
+    print("Creating welcome node")
     return NodeConfig(
         name="welcome_start",
         task_messages=[
@@ -238,6 +243,7 @@ You must speak first and initiate the conversation with a warm greeting that ref
 
 def get_inbound_flow_config() -> Dict[str, Any]:
     """Get the natural interview flow configuration."""
+    print("Getting inbound flow config")
     return {
         "initial_node": "welcome_start",
         "turn_manager": {

@@ -67,3 +67,11 @@ class GetStudentFeedbacksInputSerializer(serializers.Serializer):
     offset = serializers.IntegerField(required=False, min_value=0, default=0)
 
 
+class GetFeedbacksByUserIdInputSerializer(serializers.Serializer):
+    """Serializer for getting all feedbacks for a user by user_id"""
+    user_id = serializers.CharField(required=False, help_text="User ID (defaults to current user if not provided)")
+    course_id = serializers.CharField(required=False, help_text="Optional course ID to filter by")
+    limit = serializers.IntegerField(required=False, min_value=1, max_value=100, default=10)
+    offset = serializers.IntegerField(required=False, min_value=0, default=0)
+
+

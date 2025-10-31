@@ -94,6 +94,70 @@ def get_student_feedbacks(
     logger.info(f"Retrieved {len(feedbacks)} feedbacks for student {student_id} in course {course_id}")
     return feedbacks, total_count
 
+
+def get_feedbacks_by_user_id(
+    user_id: str,
+    course_id: Optional[str] = None,
+    limit: int = 10,
+    offset: int = 0
+) -> Tuple[List[Feedback], int]:
+    """
+    Get all feedbacks for a user by user_id (user is mapped to student).
+
+    Parameters:
+        user_id (str): The UUID of the user
+        course_id (str, optional): The UUID of the course to filter by
+        limit (int): Maximum number of feedbacks to return
+        offset (int): Number of feedbacks to skip
+
+    Returns:
+        Tuple[List[Feedback], int]: List of feedbacks and total count
+    """
+    if not _safe_uuid_convert(user_id):
+        logger.warning(f"Invalid user_id format: {user_id}")
+        return [], 0
+    
+    # Get student by user_id
+    from niva_app.services.student import get_student_by_user_id
+    student = get_student_by_user_id(user_id)
+    
+    if not student:
+        logger.warning(f"No student profile found for user_id {user_id}")
+        return [], 0
+    
+    # Build queryset
+    queryset = Feedback.objects.filter(
+        student=student
+    ).select_related(
+        'student', 'agent', 'daily_call'
+    )
+    
+    # Filter by course if provided
+    if course_id:
+        if not _safe_uuid_convert(course_id):
+            logger.warning(f"Invalid course_id format: {course_id}")
+            return [], 0
+        
+        try:
+            course = Course.objects.get(id=course_id)
+            # Check if student is enrolled in the course
+            if not student.course.filter(id=course_id).exists():
+                logger.warning(f"Student {student.id} is not enrolled in course {course_id}")
+                return [], 0
+        except Course.DoesNotExist:
+            logger.warning(f"Course with ID {course_id} not found")
+            return [], 0
+        
+        queryset = queryset.filter(daily_call__course_id=course_id)
+    
+    # Order and paginate
+    queryset = queryset.order_by('-created_at')
+    total_count = queryset.count()
+    feedbacks = list(queryset[offset:offset + limit])
+    
+    logger.info(f"Retrieved {len(feedbacks)} feedbacks for user_id {user_id} (student_id: {student.id})")
+    return feedbacks, total_count
+
 def get_all_feedbacks(
     student_id: Optional[str] = None,
     agent_id: Optional[str] = None,

@@ -115,6 +115,7 @@ async def get_inbound_agent_context(course_id: str, agent_id: str) -> str:
     except Exception as e:
         logger.error(f"Failed to get interview agent context: {e}")
         logger.exception("Full traceback:")
+        print(e)
         
         # Fallback to a basic natural interview context
         tools_description = get_inbound_tools_description()

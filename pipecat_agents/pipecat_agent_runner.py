@@ -414,10 +414,13 @@ class PipecatAgentRunner:
             agent_system_instruction = await get_inbound_agent_context(course_id, agent_id)
             logger.info(f"✅ Successfully loaded agent context for agent {agent_id}, course {course_id}")
             logger.info(f"Context preview (first 500 chars): {agent_system_instruction[:500]}...")
+            print("Successfully loaded agent context for agent {agent_id}")
+            print("Context preview: {agent_system_instruction[:500]}...")
         except Exception as e:
             logger.error(f"❌ Failed to load inbound agent context, using fallback: {e}")
             logger.exception("Full traceback for context loading failure:")
-            
+            print("Full traceback for context loading failure:")
+            print(e)
             # Try to get at least the agent and course names for the fallback
             try:
                 from niva_app.models.agents import Agent
@@ -433,15 +436,7 @@ class PipecatAgentRunner:
                 course_name = "the exam"
             
             agent_system_instruction = f"""
-                ==========================================
-                CRITICAL IDENTITY INFORMATION - USE THIS:
-                ==========================================
-                YOUR NAME: {agent_name}
-                YOUR ROLE: Interview Coach for {course_name}
-                COURSE/EXAM: {course_name}
-                ==========================================
-                
-                You are {agent_name}, an interview coach helping students prepare for {course_name}.
+                You are {agent_name}, an interview coach helping students prepare for interview.
                 
                 CRITICAL - YOUR ROLE:
                 - You are the INTERVIEWER, NOT the interviewee
@@ -452,9 +447,7 @@ class PipecatAgentRunner:
                 - YOU ask the questions, the student answers them
                 - You must always speak first when the conversation starts
                 
-                REMEMBER: You MUST always refer to yourself as "{agent_name}" and the exam/course as "{course_name}" throughout the conversation.
-                
-                Your role is to simulate interview scenarios for {course_name}, provide constructive feedback, and guide students on how to improve their answers.
+                Your role is to simulate interview scenarios, provide constructive feedback, and guide students on how to improve their answers.
                 Be encouraging, empathetic, and professional. Focus on helping students build confidence and refine their communication skills.
                 Provide tips on body language, tone, and content of their responses.
                 All your questions and discussions should be related to {course_name}.
