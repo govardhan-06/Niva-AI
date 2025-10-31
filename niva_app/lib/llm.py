@@ -63,7 +63,7 @@ def summarize_conversation(messages: list[dict], agent_name: str) -> str:
         summary: str
 
     response = gemini_client.models.generate_content(
-        model="gemini-2.5-pro",
+        model="gemini-2.5-flash-lite",
         contents=[prompt],
         config={
             "response_mime_type": "application/json",

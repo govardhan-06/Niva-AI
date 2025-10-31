@@ -26,6 +26,7 @@ from pipecat_flows import FlowManager, ContextStrategy, ContextStrategyConfig
 from pipecat_agents.services.pipecat_agent_service import AgentServiceRegistry, AgentService
 from niva_app.models.agents import Agent
 from django.core.exceptions import ObjectDoesNotExist
+from asgiref.sync import sync_to_async
 from pipecat_agents.services.inbound_flow_service import get_inbound_flow_config
 from pipecat_agents.services.agent_llm_service import (
     get_inbound_agent_context,
@@ -411,10 +412,36 @@ class PipecatAgentRunner:
 
         try:
             agent_system_instruction = await get_inbound_agent_context(course_id, agent_id)
+            logger.info(f"✅ Successfully loaded agent context for agent {agent_id}, course {course_id}")
+            logger.info(f"Context preview (first 500 chars): {agent_system_instruction[:500]}...")
         except Exception as e:
-            logger.error(f"Failed to load inbound agent context, using fallback: {e}")
-            agent_system_instruction = """
-                You are an interview coach helping students prepare for job interviews.
+            logger.error(f"❌ Failed to load inbound agent context, using fallback: {e}")
+            logger.exception("Full traceback for context loading failure:")
+            
+            # Try to get at least the agent and course names for the fallback
+            try:
+                from niva_app.models.agents import Agent
+                from niva_app.models.course import Course
+                agent = await sync_to_async(Agent.objects.get)(id=agent_id)
+                course = await sync_to_async(Course.objects.get)(id=course_id)
+                agent_name = agent.name
+                course_name = course.name
+                logger.info(f"Retrieved agent name: {agent_name}, course name: {course_name}")
+            except Exception as db_error:
+                logger.error(f"Failed to retrieve agent/course names: {db_error}")
+                agent_name = "Interview Coach"
+                course_name = "the exam"
+            
+            agent_system_instruction = f"""
+                ==========================================
+                CRITICAL IDENTITY INFORMATION - USE THIS:
+                ==========================================
+                YOUR NAME: {agent_name}
+                YOUR ROLE: Interview Coach for {course_name}
+                COURSE/EXAM: {course_name}
+                ==========================================
+                
+                You are {agent_name}, an interview coach helping students prepare for {course_name}.
                 
                 CRITICAL - YOUR ROLE:
                 - You are the INTERVIEWER, NOT the interviewee
@@ -425,10 +452,14 @@ class PipecatAgentRunner:
                 - YOU ask the questions, the student answers them
                 - You must always speak first when the conversation starts
                 
-                Your role is to simulate interview scenarios, provide constructive feedback, and guide students on how to improve their answers.
+                REMEMBER: You MUST always refer to yourself as "{agent_name}" and the exam/course as "{course_name}" throughout the conversation.
+                
+                Your role is to simulate interview scenarios for {course_name}, provide constructive feedback, and guide students on how to improve their answers.
                 Be encouraging, empathetic, and professional. Focus on helping students build confidence and refine their communication skills.
                 Provide tips on body language, tone, and content of their responses.
+                All your questions and discussions should be related to {course_name}.
             """.strip()
+            logger.warning(f"Using fallback context with agent_name={agent_name}, course_name={course_name}")
 
         # Setup the Daily transport
         transport = DailyTransport(
@@ -446,9 +477,10 @@ class PipecatAgentRunner:
             ),
         )
 
+        # Initialize LLM with the agent context as system instruction
         llm = GoogleLLMService(
             api_key=config.GOOGLE_GEMINI_API_KEY,
-            model="gemini-2.5-pro",
+            model="gemini-2.5-flash-lite",
             system_instruction=agent_system_instruction,
             params=GoogleLLMService.InputParams(
                 temperature=1.0, 
@@ -485,10 +517,15 @@ class PipecatAgentRunner:
             ),
         )
 
+        # Use APPEND strategy so node task_messages are added to the system instruction
+        # This ensures the agent context (with name, course, etc.) is always present
         context_strategy = ContextStrategyConfig(
             strategy=ContextStrategy.APPEND,
         )
 
+        logger.info("Initializing FlowManager with APPEND strategy")
+        logger.info("This means: System instruction (agent context) + Node task messages")
+        
         # Initialize the flow manager with inbound flow config
         self.flow_manager = FlowManager(
             task=task,
@@ -497,6 +534,8 @@ class PipecatAgentRunner:
             context_strategy=context_strategy,
             flow_config=self.flow_config,
         )
+        
+        logger.info(f"✅ FlowManager initialized with flow config: {list(self.flow_config.get('nodes', {}).keys())}")
 
         # Register all inbound function handlers
         inbound_handlers_register(llm)

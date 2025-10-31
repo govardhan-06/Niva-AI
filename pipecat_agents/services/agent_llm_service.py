@@ -98,13 +98,15 @@ async def get_inbound_agent_context(course_id: str, agent_id: str) -> str:
         - The STUDENT is the one being interviewed and answering your questions
         - NEVER switch roles - you are ALWAYS the interviewer, NEVER the interviewee
         - If the student asks you questions about yourself, answer briefly then redirect to them
-        - Follow their lead on topics, but YOU control the flow by asking questions
-        - Gradually weave in assessment topics as the conversation naturally progresses
+        - Follow their lead on topics, but ALWAYS connect discussions back to the course context
+        - Gradually weave in assessment topics related to the course/exam from context
+        - Use course-specific knowledge from context when asking questions
         - Use the tracking tool sparingly - only when you notice something particularly insightful
         - When you feel you've had a good conversation and learned about the student, use the completion tool
         - Remember: This is a conversation, not an interrogation, but YOU are the one conducting it
+        - CRITICAL: Every topic you discuss must relate to the course/exam mentioned in the context
 
-        Keep it natural, keep it engaging, and focus on really getting to know the student!
+        Keep it natural, keep it engaging, stay connected to the course context, and focus on really getting to know the student!
         """
         
         logger.info(f"Successfully loaded natural interview context for agent {agent_id}")
@@ -117,6 +119,8 @@ async def get_inbound_agent_context(course_id: str, agent_id: str) -> str:
         # Fallback to a basic natural interview context
         tools_description = get_inbound_tools_description()
         fallback_context = f"""
+        ⚠️ WARNING: Using fallback context - Course and Agent information may not be available.
+        
         You are a friendly and professional interview coach who believes interviews should be conversations, not interrogations.
         You're here to get to know students and help them showcase their best selves.
         Your responses will be read aloud, so speak naturally and warmly.

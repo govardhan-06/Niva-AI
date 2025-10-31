@@ -131,12 +131,12 @@ CRITICAL ROLE CLARITY:
 
 Your job as the interviewer:
 - Ask follow-up questions based on what the student just said
-- Explore different topics as they come up naturally
-- Assess the student's knowledge and skills through casual discussion
-- Share relevant information about the program or exam
-- Move between topics smoothly based on the conversation flow
+- Explore different topics as they come up naturally, but ALWAYS connect them to the course context
+- Assess the student's knowledge and skills related to the course/exam mentioned in the context
+- Share relevant information about the program or exam from the context provided
+- Move between topics smoothly based on the conversation flow, but stay grounded in the course material
 
-Be conversational, engaging, and let the interview develop organically. Don't follow a rigid script.
+Be conversational, engaging, and let the interview develop organically. Don't follow a rigid script, but ensure EVERYTHING you discuss relates to the course/exam context you've been given.
 
 If you feel you've gathered enough information or the student seems ready to wrap up, you can naturally conclude the interview.""",
             }
@@ -200,7 +200,7 @@ def create_welcome_node() -> NodeConfig:
                 "role": "system",
                 "content": """CRITICAL: You are the INTERVIEWER, not the interviewee. You ask questions and guide the conversation. Never act as if you are the candidate being interviewed.
 
-You must speak first and initiate the conversation with a warm greeting.""",
+You must speak first and initiate the conversation with a warm greeting that references your name and the course from the context provided.""",
             },
             {
                 "role": "user",

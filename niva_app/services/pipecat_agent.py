@@ -237,13 +237,35 @@ class AgentCallProcessor:
             
             print("Fallback mechanism: "+str(student_details))
 
-            # Generate call summary
+            # Generate call summary with agent name
             call_summary = ""
             try:
-                call_summary = AgentCallProcessor.generate_call_summary(transcript_content)
+                # Get agent name for the summary (use sync_to_async for database call)
+                @sync_to_async
+                def get_agent_name(agent_id):
+                    try:
+                        agent = Agent.objects.get(id=agent_id)
+                        return agent.name
+                    except Agent.DoesNotExist:
+                        logger.warning(f"Agent with ID {agent_id} not found")
+                        return "Agent"
+                
+                agent_name = await get_agent_name(agent_id)
+                logger.info(f"Generating call summary with agent name: {agent_name}")
+                
+                call_summary = AgentCallProcessor.generate_call_summary(
+                    transcript_content, 
+                    agent_name=agent_name
+                )
                 logger.info(f"Generated call summary: {call_summary[:100]}...")
             except Exception as e:
                 logger.error(f"Error generating call summary: {e}")
+                logger.exception("Full traceback for call summary generation:")
+                # Generate a basic fallback summary
+                if transcript_content:
+                    call_summary = f"A student called for assistance. Transcript: {transcript_content[:200]}..."
+                else:
+                    call_summary = "A student called for assistance."
             
             # Process student data if available
             if not student_id and student_details:
@@ -494,7 +516,7 @@ class AgentCallProcessor:
             """
 
             response = gemini_client.models.generate_content(
-                model="gemini-2.5-pro",
+                model="gemini-2.5-flash-lite",
                 contents=[prompt],
                 config={
                     "response_mime_type": "application/json",
@@ -663,29 +685,55 @@ class AgentCallProcessor:
         Generate a call summary using Gemini based on the transcript content.
         """
         if not transcript_content:
-            return ""
-        prompt = (
-            f"Summarize the following call transcript in 2-3 sentences. "
-            f"Summarize in this format in the first person: "
-            f"`Hi there, this is {agent_name}. A student called for assistance with ... I will connect you to the student now.`\n"
-            f"Transcript:\n"
-            f"{transcript_content}"
-        )
-
-        response = gemini_client.models.generate_content(
-            model="gemini-2.5-pro",
-            contents=[prompt],
-            config={
-                "response_mime_type": "application/json",
-                "response_schema": Summary,
-            },
-        )
+            logger.warning("No transcript content provided for summary generation")
+            return f"Hi there, this is {agent_name}. A student called for assistance."
+        
         try:
-            # Try to parse the summary from the response
-            data = json.loads(response.text)
-            return data.get("summary", response.text)
-        except Exception:
-            return response.text
+            prompt = (
+                f"Summarize the following interview call transcript in 2-3 sentences. "
+                f"Summarize in this format in the first person: "
+                f"`Hi there, this is {agent_name}. A student called for assistance with ... I will connect you to the student now.`\n\n"
+                f"Transcript:\n"
+                f"{transcript_content}"
+            )
+
+            response = gemini_client.models.generate_content(
+                model="gemini-2.5-flash-lite",
+                contents=[prompt],
+                config={
+                    "response_mime_type": "application/json",
+                    "response_schema": Summary,
+                },
+            )
+            
+            # Check if response has text
+            if not hasattr(response, 'text') or not response.text:
+                logger.error("Gemini response has no text attribute or is empty")
+                return f"Hi there, this is {agent_name}. A student called for assistance."
+            
+            try:
+                # Try to parse the summary from the JSON response
+                data = json.loads(response.text)
+                summary = data.get("summary", response.text)
+                if summary and len(summary.strip()) > 0:
+                    logger.info(f"Successfully generated call summary: {summary[:100]}...")
+                    return summary
+                else:
+                    logger.warning("Summary field is empty, using response text")
+                    return response.text if response.text else f"Hi there, this is {agent_name}. A student called for assistance."
+            except json.JSONDecodeError as e:
+                logger.warning(f"Failed to parse JSON response: {e}. Response text: {response.text[:200]}")
+                # If JSON parsing fails, try to use the response text directly
+                if response.text and len(response.text.strip()) > 0:
+                    return response.text
+                else:
+                    return f"Hi there, this is {agent_name}. A student called for assistance."
+                    
+        except Exception as e:
+            logger.error(f"Error generating call summary with Gemini: {e}")
+            logger.exception("Full traceback for Gemini call summary:")
+            # Return a basic fallback summary
+            return f"Hi there, this is {agent_name}. A student called for assistance with interview preparation."
     
     @staticmethod
     def populate_student_details(transcript_content: str, agent_name: str = "Agent") -> Student_details:
@@ -713,7 +761,7 @@ class AgentCallProcessor:
 
         try:
             response = gemini_client.models.generate_content(
-                model="gemini-2.5-pro",
+                model="gemini-2.5-flash-lite",
                 contents=[prompt],
                 config={
                     "response_mime_type": "application/json",
