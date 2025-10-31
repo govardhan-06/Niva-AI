@@ -95,29 +95,29 @@ AUTH_USER_MODEL = "niva_app.User"
 
 ASGI_APPLICATION = "app.asgi.application"
 
-# DATABASES = {
-#     "default": {
-#         "ENGINE": "django.db.backends.postgresql",
-#         "NAME": get_env_var("DB_NAME"),
-#         "USER": get_env_var("DB_USER"),
-#         "PASSWORD": get_env_var("DB_PASSWORD"),
-#         "HOST": get_env_var("DB_HOST"),
-#         "PORT": get_env_var("DB_PORT"),
-#         "CONN_MAX_AGE": 3600,
-#     },
-# }
-
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": get_env_var("LOCAL_DB_NAME"),
-        "USER": get_env_var("LOCAL_DB_USER"),
-        "PASSWORD": get_env_var("LOCAL_DB_PASSWORD"),
-        "HOST": get_env_var("LOCAL_DB_HOST"),
-        "PORT": get_env_var("LOCAL_DB_PORT"),
+        "NAME": get_env_var("DB_NAME"),
+        "USER": get_env_var("DB_USER"),
+        "PASSWORD": get_env_var("DB_PASSWORD"),
+        "HOST": get_env_var("DB_HOST"),
+        "PORT": get_env_var("DB_PORT"),
         "CONN_MAX_AGE": 3600,
     },
 }
+
+# DATABASES = {
+#     "default": {
+#         "ENGINE": "django.db.backends.postgresql",
+#         "NAME": get_env_var("LOCAL_DB_NAME"),
+#         "USER": get_env_var("LOCAL_DB_USER"),
+#         "PASSWORD": get_env_var("LOCAL_DB_PASSWORD"),
+#         "HOST": get_env_var("LOCAL_DB_HOST"),
+#         "PORT": get_env_var("LOCAL_DB_PORT"),
+#         "CONN_MAX_AGE": 3600,
+#     },
+# }
 
 
 # Password validation
@@ -185,15 +185,15 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 CORS_ORIGIN_ALLOW_ALL = True  # Allow all origins
 CORS_ALLOW_HEADERS = [*default_headers, "Timezone"]
 
-# REDIS_HOST     = get_env_var("REDIS_HOST", "redis")
-# REDIS_PORT     = int(get_env_var("REDIS_PORT", "6379"))
-# REDIS_DB       = get_env_var("REDIS_DB", "1")
-# LOCATION = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
-
-REDIS_HOST     = os.environ.get("REDIS_HOST", "redis")
-REDIS_PORT     = os.environ.get("REDIS_PORT", "6379")
-REDIS_DB       = os.environ.get("REDIS_DB", "1")
+REDIS_HOST     = get_env_var("REDIS_HOST", "redis")
+REDIS_PORT     = int(get_env_var("REDIS_PORT", "6379"))
+REDIS_DB       = get_env_var("REDIS_DB", "1")
 LOCATION = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
+
+# REDIS_HOST     = os.environ.get("REDIS_HOST", "redis")
+# REDIS_PORT     = os.environ.get("REDIS_PORT", "6379")
+# REDIS_DB       = os.environ.get("REDIS_DB", "1")
+# LOCATION = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
 
 CACHES = {
     "default": {

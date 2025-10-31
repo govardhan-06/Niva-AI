@@ -1,50 +1,119 @@
 services:
-  # Combined service running all three apps
+  redis:
+    image: redis:latest
+    ports:
+      - 6379:6379
+    volumes:
+      - redis_data:/data
+
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+      - HTTP_USER=${LOCAL_REDIS_USER:-admin}
+      - HTTP_PASSWORD=${LOCAL_REDIS_PASSWORD:-password}
+    ports:
+      - 8081:8081
+    depends_on:
+      - redis
+
+  postgres:
+    image: ankane/pgvector:v0.5.1
+    environment:
+      POSTGRES_DB: ${LOCAL_DB_NAME:-niva_dev}
+      POSTGRES_USER: ${LOCAL_DB_USER:-niva_dev_user}
+      POSTGRES_PASSWORD: ${LOCAL_DB_PASSWORD:-niva_password}
+    ports:
+      - 5432:5432
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
   main:
     build: .
     image: niva-backend
+    env_file:
+      - .env
     command: |
       bash -c "
-        # Run migrations and start Django server in background
+        # Wait for Postgres
+        tools/wait-for-it.sh postgres:5432
+
+        # Run migrations and start server
         python manage.py makemigrations
         python manage.py migrate
         python manage.py collectstatic --noinput
-        python manage.py runserver 0.0.0.0:8000 &
-        
-        # Wait for Django server to be ready
-        tools/wait-for-it.sh localhost:8000
-        
-        # Start niva_app service in background
-        python -m niva_app.app &
-        
-        # Start pipecat_agents service in background
-        python -m pipecat_agents.pipecat_agent_runner &
-        
-        # Wait for all background processes
-        wait
+        python manage.py runserver 0.0.0.0:8000
       "
     environment:
-      DJANGO_SETTINGS_MODULE: app.settings
-      POSTGRES_HOST: ${DB_HOST}       # AWS RDS endpoint
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: ${DB_NAME}
-      POSTGRES_PORT: ${DB_PORT:-5432}
-      REDIS_HOST: ${REDIS_HOST}       # AWS ElastiCache endpoint
-      REDIS_PORT: ${REDIS_PORT:-6379}
-      REDIS_DB: ${REDIS_DB:-1}
-      DEBUG: False
-      # AWS Credentials for Secrets Manager
-      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
-      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
-      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-eu-central-1}
+      - POSTGRES_HOST=postgres
+      - POSTGRES_USER=${LOCAL_DB_USER:-niva_dev_user}
+      - POSTGRES_PASSWORD=${LOCAL_DB_PASSWORD:-niva_password}
+      - POSTGRES_DB=${LOCAL_DB_NAME:-niva_dev}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=1
     ports:
       - 8000:8000
     volumes:
       - .:/app
       - ./staticfiles:/app/staticfiles
+    depends_on:
+      - postgres
+      - redis
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
+
+  niva_app:
+    build: .
+    image: niva-backend
+    env_file:
+      - .env
+    command: |
+      bash -c "
+        # Wait for Postgres and Main service
+        tools/wait-for-it.sh postgres:5432
+        tools/wait-for-it.sh main:8000
+
+        # Start niva_app service
+        python -m niva_app.app
+      "
+    volumes:
+      - .:/app
+    depends_on:
+      - main
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  pipecat_agents:
+    build: .
+    image: niva-backend
+    env_file:
+      - .env
+    command: |
+      bash -c "
+        # Wait for Postgres and Main service
+        tools/wait-for-it.sh postgres:5432
+        tools/wait-for-it.sh main:8000
+
+        # Start pipecat_agents service
+        python -m pipecat_agents.pipecat_agent_runner
+      "
+    volumes:
+      - .:/app
+    depends_on:
+      - main
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  postgres_data:
+  redis_data:
