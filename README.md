@@ -25,12 +25,14 @@ Authorization: Token <your_token_here>
 
 1. [Authentication APIs](#authentication-apis)
 2. [Course Management APIs](#course-management-apis)
-3. [Agent Memory APIs](#agent-memory-apis)
-4. [Agent APIs](#agent-apis)
-5. [Daily.co Integration APIs](#dailyco-integration-apis)
-6. [Entrypoint APIs](#entrypoint-apis)
-7. [Test APIs](#test-apis)
-8. [Pipecat Agent APIs](#pipecat-agent-apis)
+3. [Student Management APIs](#student-management-apis)
+4. [Feedback APIs](#feedback-apis)
+5. [Agent Memory APIs](#agent-memory-apis)
+6. [Agent APIs](#agent-apis)
+7. [Daily.co Integration APIs](#dailyco-integration-apis) (NOT FOR FRONTEND)
+8. [Entrypoint APIs](#entrypoint-apis)
+9. [Test APIs](#test-apis)
+10. [Pipecat Agent APIs](#pipecat-agent-apis) (NOT FOR FRONTEND)
 
 ---
 
@@ -93,6 +95,35 @@ Authenticates a user and returns an access token.
 - `200` - Success
 - `400` - Bad Request (invalid credentials)
 - `404` - User not found
+
+---
+
+### Get User Data
+**GET** `/auth/user/data/`
+
+Retrieves the current authenticated user's data.
+
+**Headers:**
+```
+Authorization: Token <your_token_here>
+```
+
+**Response:**
+```json
+{
+  "message": "User data retrieved successfully",
+  "user": {
+    "id": "uuid",
+    "email": "user@example.com",
+    "username": "user@example.com",
+    "role": "User"
+  }
+}
+```
+
+**Status Codes:**
+- `200` - Success
+- `401` - Unauthorized (missing or invalid token)
 
 ---
 
@@ -292,6 +323,32 @@ Deletes a course.
 - `200` - Success
 - `400` - Bad Request
 - `404` - Course not found
+
+---
+
+### List All Courses
+**GET** `/course/list/`
+
+Retrieves a simple list of all courses with basic information (lightweight alternative to GetAllCourses).
+
+**Response:**
+```json
+{
+  "courses": [
+    {
+      "id": "uuid",
+      "name": "Python Programming Course",
+      "description": "Learn Python from basics to advanced",
+      "is_active": true,
+      "language": "en"
+    }
+  ]
+}
+```
+
+**Status Codes:**
+- `200` - Success
+- `400` - Bad Request
 
 ---
 
@@ -852,138 +909,449 @@ Stops a specific voice call.
 
 ---
 
-**Student API Endpoints**
+## Student Management APIs
 
-All student APIs are available at: `http://your-domain.com/api/v1/student/`
+### Create Student
+**POST** `/student/create/`
 
-### **1. Create Student**
-**Endpoint:** `POST /api/v1/student/create/`
+Creates a new student and optionally associates with courses.
 
 **Request Body:**
 ```json
 {
-    "first_name": "John",
-    "last_name": "Doe",
-    "phone_number": "1234567890",
-    "email": "john.doe@example.com",
-    "gender": "MALE",
-    "date_of_birth": "1990-01-15",
-    "course_ids": ["course-uuid-1", "course-uuid-2"]
+  "first_name": "John",
+  "last_name": "Doe",
+  "phone_number": "1234567890",
+  "email": "john.doe@example.com",
+  "gender": "MALE",
+  "date_of_birth": "1990-01-15",
+  "course_ids": ["course-uuid-1", "course-uuid-2"]
 }
 ```
 
 **Response:**
 ```json
 {
-    "message": "Student created successfully",
-    "student": {
-        "id": "student-uuid",
-        "first_name": "John",
-        "last_name": "Doe",
-        "gender": "MALE",
-        "date_of_birth": "1990-01-15",
-        "email": "john.doe@example.com",
-        "phone_number": "+1234567890",
-        "created_at": "2025-09-17T10:30:00Z",
-        "updated_at": "2025-09-17T10:30:00Z",
-        "courses": [...]
-    }
-}
-```
-
-### **2. Get Student**
-**Endpoint:** `POST /api/v1/student/get/`
-
-**Request Body:**
-```json
-{
-    "student_id": "student-uuid"
-}
-```
-
-### **3. Get All Students**
-**Endpoint:** `POST /api/v1/student/all/`
-
-**Request Body (optional filters):**
-```json
-{
-    "course_id": "course-uuid",
+  "message": "Student created successfully",
+  "student": {
+    "id": "student-uuid",
+    "first_name": "John",
+    "last_name": "Doe",
+    "gender": "MALE",
+    "date_of_birth": "1990-01-15",
+    "email": "john.doe@example.com",
     "phone_number": "+1234567890",
-    "email": "john.doe@example.com"
+    "created_at": "2025-09-17T10:30:00Z",
+    "updated_at": "2025-09-17T10:30:00Z",
+    "courses": [
+      {
+        "id": "uuid",
+        "name": "Course Name",
+        "description": "Course Description",
+        "is_active": true,
+        "language": "en"
+      }
+    ]
+  }
 }
 ```
 
-### **4. Update Student**
-**Endpoint:** `POST /api/v1/student/update/`
+**Status Codes:**
+- `200` - Success
+- `400` - Bad Request (validation errors)
+- `404` - Course not found (if course_ids provided)
+
+---
+
+### Get Student
+**POST** `/student/get/`
+
+Retrieves a specific student by ID.
 
 **Request Body:**
 ```json
 {
-    "student_id": "student-uuid",
+  "student_id": "student-uuid"
+}
+```
+
+**Response:**
+```json
+{
+  "student": {
+    "id": "student-uuid",
+    "first_name": "John",
+    "last_name": "Doe",
+    "gender": "MALE",
+    "date_of_birth": "1990-01-15",
+    "email": "john.doe@example.com",
+    "phone_number": "+1234567890",
+    "created_at": "2025-09-17T10:30:00Z",
+    "updated_at": "2025-09-17T10:30:00Z",
+    "courses": [...]
+  }
+}
+```
+
+**Status Codes:**
+- `200` - Success
+- `400` - Bad Request
+- `404` - Student not found
+
+---
+
+### Get All Students
+**POST** `/student/all/`
+
+Retrieves all students with optional filtering.
+
+**Request Body (all fields optional):**
+```json
+{
+  "course_id": "course-uuid",
+  "phone_number": "+1234567890",
+  "email": "john.doe@example.com"
+}
+```
+
+**Response:**
+```json
+{
+  "students": [
+    {
+      "id": "student-uuid",
+      "first_name": "John",
+      "last_name": "Doe",
+      "gender": "MALE",
+      "date_of_birth": "1990-01-15",
+      "email": "john.doe@example.com",
+      "phone_number": "+1234567890",
+      "created_at": "2025-09-17T10:30:00Z",
+      "updated_at": "2025-09-17T10:30:00Z",
+      "courses": [...]
+    }
+  ]
+}
+```
+
+**Status Codes:**
+- `200` - Success
+- `400` - Bad Request
+
+---
+
+### List All Students
+**GET** `/student/list/`
+
+Retrieves a simple list of all students with basic information (lightweight alternative to GetAllStudents).
+
+**Response:**
+```json
+{
+  "students": [
+    {
+      "id": "student-uuid",
+      "first_name": "John",
+      "last_name": "Doe",
+      "full_name": "John Doe"
+    }
+  ]
+}
+```
+
+**Status Codes:**
+- `200` - Success
+- `400` - Bad Request
+
+---
+
+### Update Student
+**POST** `/student/update/`
+
+Updates an existing student.
+
+**Request Body:**
+```json
+{
+  "student_id": "student-uuid",
+  "first_name": "John Updated",
+  "last_name": "Doe",
+  "gender": "FEMALE",
+  "date_of_birth": "1990-01-15",
+  "email": "john.updated@example.com",
+  "phone_number": "9876543210",
+  "course_ids": ["new-course-uuid"]
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Student updated successfully",
+  "student": {
+    "id": "student-uuid",
     "first_name": "John Updated",
-    "phone_number": "9876543210",
-    "course_ids": ["new-course-uuid"]
+    "last_name": "Doe",
+    "gender": "FEMALE",
+    "date_of_birth": "1990-01-15",
+    "email": "john.updated@example.com",
+    "phone_number": "+9876543210",
+    "created_at": "2025-09-17T10:30:00Z",
+    "updated_at": "2025-09-17T11:00:00Z",
+    "courses": [...]
+  }
 }
 ```
 
-### **5. Delete Student**
-**Endpoint:** `POST /api/v1/student/delete/`
+**Status Codes:**
+- `200` - Success
+- `400` - Bad Request (validation errors)
+- `404` - Student not found
+
+---
+
+### Delete Student
+**POST** `/student/delete/`
+
+Deletes a student.
 
 **Request Body:**
 ```json
 {
-    "student_id": "student-uuid"
+  "student_id": "student-uuid"
 }
 ```
 
-# **Feedback**
+**Response:**
+```json
+{
+  "message": "Student deleted successfully"
+}
+```
 
-#### 1. **Get Specific Feedback**
-- **Endpoint:** `GET /api/v1/feedback/get/`
-- **Purpose:** Retrieve a specific feedback by ID
-- **Parameters:** `feedback_id` (UUID)
+**Status Codes:**
+- `200` - Success
+- `400` - Bad Request
+- `404` - Student not found
 
-#### 2. **Get Student Feedbacks**
-- **Endpoint:** `GET /api/v1/feedback/student/`
-- **Purpose:** Get all feedbacks for a specific student
-- **Parameters:** 
-  - `student_id` (UUID, required)
-  - `limit` (integer, optional, default: 10, max: 100)
-  - `offset` (integer, optional, default: 0)
+---
 
-#### 3. **Get Agent Feedbacks**
-- **Endpoint:** `GET /api/v1/feedback/agent/`
-- **Purpose:** Get all feedbacks for a specific agent
-- **Parameters:**
-  - `agent_id` (UUID, required)
-  - `limit` (integer, optional, default: 10, max: 100)
-  - `offset` (integer, optional, default: 0)
+### Associate User with Student
+**POST** `/student/associate-user/`
 
-#### 4. **Get Course Feedbacks**
-- **Endpoint:** `GET /api/v1/feedback/course/`
-- **Purpose:** Get all feedbacks for students in a specific course
-- **Parameters:**
-  - `course_id` (UUID, required)
-  - `limit` (integer, optional, default: 10, max: 100)
-  - `offset` (integer, optional, default: 0)
+Associates an existing user account with an existing student profile.
 
-#### 5. **Get All Feedbacks (with filtering)**
-- **Endpoint:** `GET /api/v1/feedback/all/`
-- **Purpose:** Get all feedbacks with optional filtering and statistics
-- **Parameters:**
-  - `student_id` (UUID, optional)
-  - `agent_id` (UUID, optional)
-  - `course_id` (UUID, optional)
-  - `min_rating` (integer, optional, 1-10)
-  - `max_rating` (integer, optional, 1-10)
-  - `limit` (integer, optional, default: 10, max: 100)
-  - `offset` (integer, optional, default: 0)
-  - `ordering` (string, optional, default: '-created_at')
+**Request Body:**
+```json
+{
+  "user_id": "user-uuid",
+  "student_id": "student-uuid"
+}
+```
 
-#### 6. **Get Feedback Statistics**
-- **Endpoint:** `GET /api/v1/feedback/statistics/`
-- **Purpose:** Get comprehensive feedback statistics
-- **Parameters:**
-  - `student_id` (UUID, optional)
-  - `agent_id` (UUID, optional)
-  - `course_id` (UUID, optional)
+**Response:**
+```json
+{
+  "message": "User associated with student successfully",
+  "student": {
+    "id": "student-uuid",
+    "first_name": "John",
+    "last_name": "Doe",
+    "email": "john.doe@example.com",
+    "phone_number": "+1234567890",
+    "user_id": "user-uuid"
+  }
+}
+```
+
+**Status Codes:**
+- `200` - Success
+- `400` - Bad Request (validation errors, user/student not found, user already associated)
+- `404` - User or student not found
+
+---
+
+### Get Student by User
+**POST** `/student/get-by-user/`
+
+Retrieves a student profile by user ID.
+
+**Request Body:**
+```json
+{
+  "user_id": "user-uuid"
+}
+```
+
+**Response:**
+```json
+{
+  "student": {
+    "id": "student-uuid",
+    "first_name": "John",
+    "last_name": "Doe",
+    "gender": "MALE",
+    "date_of_birth": "1990-01-15",
+    "email": "john.doe@example.com",
+    "phone_number": "+1234567890",
+    "user_id": "user-uuid",
+    "created_at": "2025-09-17T10:30:00Z",
+    "updated_at": "2025-09-17T10:30:00Z",
+    "courses": [...]
+  }
+}
+```
+
+**Status Codes:**
+- `200` - Success
+- `400` - Bad Request
+- `404` - No student profile found for this user
+
+---
+
+## Feedback APIs
+
+### Get Feedback
+**GET** `/feedback/get/`
+
+Retrieves a specific feedback by ID.
+
+**Query Parameters:**
+- `feedback_id` (UUID, required)
+
+**Response:**
+```json
+{
+  "message": "Feedback retrieved successfully",
+  "feedback": {
+    "id": "uuid",
+    "student": "student-uuid",
+    "student_name": "John Doe",
+    "daily_call": "daily-call-uuid",
+    "agent": "agent-uuid",
+    "agent_name": "Agent Name",
+    "course_name": "Course Name",
+    "overall_rating": 8,
+    "communication_rating": 9,
+    "technical_rating": 7,
+    "confidence_rating": 8,
+    "average_rating": 8.0,
+    "feedback_text": "Feedback text here...",
+    "strengths": "Student strengths...",
+    "improvements": "Areas for improvement...",
+    "recommendations": "Recommendations...",
+    "created_at": "2024-01-01T00:00:00Z",
+    "updated_at": "2024-01-01T00:00:00Z"
+  }
+}
+```
+
+**Status Codes:**
+- `200` - Success
+- `400` - Bad Request (feedback not found)
+
+---
+
+### Get Student Feedbacks
+**GET** `/feedback/student/`
+
+Retrieves all feedbacks for a specific student and course.
+
+**Query Parameters:**
+- `student_id` (UUID, required)
+- `course_id` (UUID, required)
+- `limit` (integer, optional, default: 10, max: 100)
+- `offset` (integer, optional, default: 0)
+
+**Response:**
+```json
+{
+  "message": "Student feedbacks retrieved successfully",
+  "feedbacks": [
+    {
+      "id": "uuid",
+      "student": "student-uuid",
+      "student_name": "John Doe",
+      "daily_call": "daily-call-uuid",
+      "agent": "agent-uuid",
+      "agent_name": "Agent Name",
+      "course_name": "Course Name",
+      "overall_rating": 8,
+      "communication_rating": 9,
+      "technical_rating": 7,
+      "confidence_rating": 8,
+      "average_rating": 8.0,
+      "feedback_text": "Feedback text here...",
+      "strengths": "Student strengths...",
+      "improvements": "Areas for improvement...",
+      "recommendations": "Recommendations...",
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  ],
+  "total_count": 5,
+  "limit": 10,
+  "offset": 0
+}
+```
+
+**Status Codes:**
+- `200` - Success
+- `400` - Bad Request (student not found, course not found, student not enrolled in course, or no feedbacks available)
+
+---
+
+### Get Feedbacks by User ID
+**GET** `/feedback/user/`
+
+Retrieves all feedbacks for the current user (or specified user_id). Each user is mapped to a student profile, so this retrieves feedbacks for that student.
+
+**Query Parameters:**
+- `user_id` (UUID, optional - defaults to current authenticated user)
+- `course_id` (UUID, optional - filter by course)
+- `limit` (integer, optional, default: 10, max: 100)
+- `offset` (integer, optional, default: 0)
+
+**Headers:**
+```
+Authorization: Token <your_token_here>
+```
+
+**Response:**
+```json
+{
+  "message": "Feedbacks retrieved successfully",
+  "feedbacks": [
+    {
+      "id": "uuid",
+      "student": "student-uuid",
+      "student_name": "John Doe",
+      "daily_call": "daily-call-uuid",
+      "agent": "agent-uuid",
+      "agent_name": "Agent Name",
+      "course_name": "Course Name",
+      "overall_rating": 8,
+      "communication_rating": 9,
+      "technical_rating": 7,
+      "confidence_rating": 8,
+      "average_rating": 8.0,
+      "feedback_text": "Feedback text here...",
+      "strengths": "Student strengths...",
+      "improvements": "Areas for improvement...",
+      "recommendations": "Recommendations...",
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  ],
+  "total_count": 3,
+  "limit": 10,
+  "offset": 0
+}
+```
+
+**Status Codes:**
+- `200` - Success
+- `400` - Bad Request (no student profile found for this user or no feedbacks available)
+- `401` - Unauthorized (when user_id not provided and no authentication token)
+
+---
