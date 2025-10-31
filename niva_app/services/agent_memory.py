@@ -15,7 +15,8 @@ from google import genai
 from unstructured_client.models import operations, shared
 import urllib.parse
 
-from niva_app.management.commands.query_agent_memory import gemini_client
+from niva_app.management.commands.query_agent_memory import gemini_client 
+from niva_app.lib.llm import groq_client 
 from niva_app.models import Agent, Memory, Course, MemoryType
 from niva_app.lib.utils import FileType, FileTypeInfo
 from niva_app.models.rag import Document
@@ -196,12 +197,22 @@ class MemoryService:
             Respond with just the category name.
             """
             
-            response = gemini_client.models.generate_content(
-                model="gemini-1.5-flash",
-                contents=[categorization_prompt]
+            # Commented out Gemini - using Groq instead
+            # response = gemini_client.models.generate_content(
+            #     model="gemini-2.5-pro",
+            #     contents=[categorization_prompt]
+            # )
+            # category = response.text.strip()
+            
+            # Use Groq for categorization
+            response = groq_client.chat.completions.create(
+                model="llama-3.1-8b-instant",
+                messages=[{"role": "user", "content": categorization_prompt}],
+                temperature=0.3,
+                max_tokens=50
             )
             
-            category = response.text.strip()
+            category = response.choices[0].message.content.strip()
             logger.info(f"Document categorized as: {category}")
             
         except Exception as e:

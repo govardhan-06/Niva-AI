@@ -6,6 +6,7 @@ from niva_app.models.course import Course
 from niva_app.models.memory import Memory
 from niva_app.models.rag import Document
 from niva_app.management.commands.query_agent_memory import gemini_client
+from niva_app.lib.llm import groq_client 
 import numpy as np
 
 logger = logging.getLogger(__name__)
@@ -180,13 +181,22 @@ class AgentContextService:
             If no relevant information is found, return "No specific information available."
             """
             
-            response = gemini_client.models.generate_content(
-                model="gemini-1.5-flash",
-                contents=[prompt]
+            # Commented out Gemini - using Groq instead
+            # response = gemini_client.models.generate_content(
+            #     model="gemini-2.5-pro",
+            #     contents=[prompt]
+            # )
+            
+            # Use Groq for content generation
+            response = groq_client.chat.completions.create(
+                model="llama-3.1-8b-instant",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.7,
+                max_tokens=1024
             )
             
             # Get the response text
-            response_text = response.text.strip()
+            response_text = response.choices[0].message.content.strip()
             
             # Return the relevant context or empty string if no info found
             if "no specific information available" in response_text.lower():
@@ -380,9 +390,18 @@ class AgentContextService:
             CURRENT_AFFAIRS: [extracted info]
             """
             
-            response = gemini_client.models.generate_content(
-                model="gemini-1.5-flash",
-                contents=[prompt]
+            # Commented out Gemini - using Groq instead
+            # response = gemini_client.models.generate_content(
+            #     model="gemini-2.5-pro",
+            #     contents=[prompt]
+            # )
+            
+            # Use Groq for content generation
+            response = groq_client.chat.completions.create(
+                model="llama-3.1-8b-instant",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.7,
+                max_tokens=1024
             )
             
             # Parse the response

@@ -7,7 +7,8 @@ import datetime
 from typing import Optional, Dict, Any, Union
 from django.db import transaction
 from django.core.exceptions import ObjectDoesNotExist
-from niva_app.lib.llm import gemini_client
+# from niva_app.lib.llm import gemini_client  # Commented out
+from niva_app.lib.llm import groq_client  # Use Groq client instead
 from niva_app.services.daily_service import DailyService
 from niva_app.models.dailycalls import DailyCall
 from niva_app.models.course import Course
@@ -493,16 +494,30 @@ class AgentCallProcessor:
             Return your analysis in JSON format with the specified fields.
             """
 
-            response = gemini_client.models.generate_content(
-                model="gemini-2.5-pro",
-                contents=[prompt],
-                config={
-                    "response_mime_type": "application/json",
-                    "response_schema": InterviewFeedback,
-                },
+            # Commented out Gemini - using Groq instead
+            # response = gemini_client.models.generate_content(
+            #     model="gemini-2.5-pro",
+            #     contents=[prompt],
+            #     config={
+            #         "response_mime_type": "application/json",
+            #         "response_schema": InterviewFeedback,
+            #     },
+            # )
+            # feedback_data = json.loads(response.text)
+            
+            # Use Groq for feedback generation
+            schema_str = json.dumps(InterviewFeedback.model_json_schema(), indent=2)
+            enhanced_prompt = f"{prompt}\n\nPlease respond in JSON format matching this schema:\n{schema_str}"
+            
+            response = groq_client.chat.completions.create(
+                model="llama-3.1-8b-instant",
+                messages=[{"role": "user", "content": enhanced_prompt}],
+                temperature=0.7,
+                max_tokens=1024,
+                response_format={"type": "json_object"}
             )
 
-            feedback_data = json.loads(response.text)
+            feedback_data = json.loads(response.choices[0].message.content)
             
             # Validate ratings are within range
             for rating_field in ['overall_rating', 'communication_rating', 'technical_rating', 'confidence_rating']:
@@ -660,7 +675,7 @@ class AgentCallProcessor:
     @staticmethod
     def generate_call_summary(transcript_content: str, agent_name: str = "Agent") -> str:
         """
-        Generate a call summary using Gemini based on the transcript content.
+        Generate a call summary using Groq based on the transcript content.
         """
         if not transcript_content:
             return ""
@@ -669,28 +684,40 @@ class AgentCallProcessor:
             f"Summarize in this format in the first person: "
             f"`Hi there, this is {agent_name}. A student called for assistance with ... I will connect you to the student now.`\n"
             f"Transcript:\n"
-            f"{transcript_content}"
+            f"{transcript_content}\n\n"
+            f"Respond in JSON format with a single field 'summary' containing your summary."
         )
 
-        response = gemini_client.models.generate_content(
-            model="gemini-2.5-pro",
-            contents=[prompt],
-            config={
-                "response_mime_type": "application/json",
-                "response_schema": Summary,
-            },
-        )
+        # Commented out Gemini - using Groq instead
+        # response = gemini_client.models.generate_content(
+        #     model="gemini-2.5-pro",
+        #     contents=[prompt],
+        #     config={
+        #         "response_mime_type": "application/json",
+        #         "response_schema": Summary,
+        #     },
+        # )
+        
         try:
+            response = groq_client.chat.completions.create(
+                model="llama-3.1-8b-instant",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.7,
+                max_tokens=256,
+                response_format={"type": "json_object"}
+            )
+            
             # Try to parse the summary from the response
-            data = json.loads(response.text)
-            return data.get("summary", response.text)
-        except Exception:
-            return response.text
+            data = json.loads(response.choices[0].message.content)
+            return data.get("summary", response.choices[0].message.content)
+        except Exception as e:
+            logger.error(f"Error generating summary: {e}")
+            return f"Hi there, this is {agent_name}. A student contacted us. I will connect you to the student now."
     
     @staticmethod
     def populate_student_details(transcript_content: str, agent_name: str = "Agent") -> Student_details:
         """
-        Populate student details from the transcript using Gemini.
+        Populate student details from the transcript using Groq.
         Returns a Student_details object with extracted fields.
         """
         if not transcript_content:
@@ -712,15 +739,30 @@ class AgentCallProcessor:
         )
 
         try:
-            response = gemini_client.models.generate_content(
-                model="gemini-2.5-pro",
-                contents=[prompt],
-                config={
-                    "response_mime_type": "application/json",
-                    "response_schema": Student_details,
-                },
+            # Commented out Gemini - using Groq instead
+            # response = gemini_client.models.generate_content(
+            #     model="gemini-2.5-pro",
+            #     contents=[prompt],
+            #     config={
+            #         "response_mime_type": "application/json",
+            #         "response_schema": Student_details,
+            #     },
+            # )
+            # return Student_details(**json.loads(response.text))
+            
+            # Use Groq for student details extraction
+            schema_str = json.dumps(Student_details.model_json_schema(), indent=2)
+            enhanced_prompt = f"{prompt}\n\nPlease respond in JSON format matching this schema:\n{schema_str}"
+            
+            response = groq_client.chat.completions.create(
+                model="llama-3.1-8b-instant",
+                messages=[{"role": "user", "content": enhanced_prompt}],
+                temperature=0.3,
+                max_tokens=512,
+                response_format={"type": "json_object"}
             )
-            return Student_details(**json.loads(response.text))
+            
+            return Student_details(**json.loads(response.choices[0].message.content))
         except Exception as e:
             logger.error(f"Error extracting student details from transcript: {e}")
             return Student_details()

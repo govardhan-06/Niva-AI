@@ -1748,6 +1748,26 @@ docs = ["Sphinx", "furo"]
 test = ["objgraph", "psutil"]
 
 [[package]]
+name = "groq"
+version = "0.23.1"
+description = "The official Python library for the groq API"
+optional = false
+python-versions = ">=3.8"
+groups = ["main"]
+files = [
+    {file = "groq-0.23.1-py3-none-any.whl", hash = "sha256:05fa38c3d0ad03c19c6185f98f6a73901c2a463e844fd067b79f7b05c8346946"},
+    {file = "groq-0.23.1.tar.gz", hash = "sha256:952e34895f9bfb78ab479e495d77b32180262e5c42f531ce3a1722d6e5a04dfb"},
+]
+
+[package.dependencies]
+anyio = ">=3.5.0,<5"
+distro = ">=1.7.0,<2"
+httpx = ">=0.23.0,<1"
+pydantic = ">=1.9.0,<3"
+sniffio = "*"
+typing-extensions = ">=4.10,<5"
+
+[[package]]
 name = "grpcio"
 version = "1.74.0"
 description = "HTTP/2-based RPC framework"
@@ -3173,6 +3193,7 @@ docstring_parser = ">=0.16,<1.0"
 google-cloud-speech = {version = ">=2.32.0,<2.33.0", optional = true, markers = "extra == \"google\""}
 google-cloud-texttospeech = {version = ">=2.26.0,<2.27.0", optional = true, markers = "extra == \"google\""}
 google-genai = {version = ">=1.24.0,<1.25.0", optional = true, markers = "extra == \"google\""}
+groq = {version = ">=0.23.0,<0.24.0", optional = true, markers = "extra == \"groq\""}
 loguru = ">=0.7.3,<0.8.0"
 Markdown = ">=3.7,<4"
 nltk = ">=3.9.1,<4"
@@ -5154,4 +5175,4 @@ propcache = ">=0.2.1"
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.11"
-content-hash = "a6369995349935f6734d276b73c63be2912b4cb4bcd808027851e78a01140ba1"
+content-hash = "acfc8cfbfeee80fab06fcb13a38e81f9aedf12d412a347e48e6783db0c552c60"

@@ -20,6 +20,7 @@ from pipecat.services.google.llm import GoogleLLMService
 from pipecat.transports.services.daily import DailyParams, DailyTransport
 from pipecat.processors.transcript_processor import TranscriptProcessor
 from pipecat.processors.audio.audio_buffer_processor import AudioBufferProcessor
+from pipecat.services.groq.llm import GroqLLMService
 
 from pipecat_flows import FlowManager, ContextStrategy, ContextStrategyConfig
 
@@ -446,11 +447,20 @@ class PipecatAgentRunner:
             ),
         )
 
-        llm = GoogleLLMService(
-            api_key=config.GOOGLE_GEMINI_API_KEY,
-            model="gemini-2.5-pro",
+        # llm = GoogleLLMService(
+        #     api_key=config.GOOGLE_GEMINI_API_KEY,
+        #     model="gemini-2.5-pro",
+        #     system_instruction=agent_system_instruction,
+        #     params=GoogleLLMService.InputParams(
+        #         temperature=1.0, 
+        #     )
+        # )
+
+        llm = GroqLLMService(
+            api_key=config.GROQ_API_KEY,
+            model="llama-3.1-8b-instant",
             system_instruction=agent_system_instruction,
-            params=GoogleLLMService.InputParams(
+            params=GroqLLMService.InputParams(
                 temperature=1.0, 
             )
         )
@@ -490,6 +500,8 @@ class PipecatAgentRunner:
         )
 
         # Initialize the flow manager with inbound flow config
+        # NOTE: FlowManager automatically registers functions from flow_config
+        # Do NOT manually register functions with llm.register_function() when using FlowManager
         self.flow_manager = FlowManager(
             task=task,
             llm=llm,
@@ -498,8 +510,9 @@ class PipecatAgentRunner:
             flow_config=self.flow_config,
         )
 
-        # Register all inbound function handlers
-        inbound_handlers_register(llm)
+        # Do NOT call inbound_handlers_register(llm) when using FlowManager
+        # FlowManager handles function registration automatically through FlowsFunctionSchema
+        # inbound_handlers_register(llm)  # COMMENTED OUT - causes duplicate registration
 
         agent_service = AgentService(
             transport=transport,

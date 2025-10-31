@@ -138,13 +138,15 @@ Your job as the interviewer:
 
 Be conversational, engaging, and let the interview develop organically. Don't follow a rigid script.
 
+IMPORTANT: Most of the time, just respond naturally in conversation. Only use the tracking function occasionally when you notice something particularly noteworthy about the student's response. Don't track every single exchange.
+
 If you feel you've gathered enough information or the student seems ready to wrap up, you can naturally conclude the interview.""",
             }
         ],
         functions=[
             FlowsFunctionSchema(
                 name="interview_progress_tracked",
-                description="Track interesting points or responses during the natural conversation",
+                description="OPTIONAL: Use sparingly to track particularly noteworthy responses or insights. Most responses don't need tracking - only use this when the student shares something especially interesting, insightful, or revealing about their knowledge/skills.",
                 properties={
                     "student_name": {
                         "type": "string",
@@ -169,7 +171,7 @@ If you feel you've gathered enough information or the student seems ready to wra
             ),
             FlowsFunctionSchema(
                 name="interview_completed",
-                description="Complete the interview when ready to wrap up",
+                description="Use this to formally complete the interview when you've had a good conversation and feel ready to wrap up. This ends the session and generates the final assessment.",
                 properties={
                     "overall_assessment": {
                         "type": "string",
@@ -210,7 +212,7 @@ You must speak first and initiate the conversation with a warm greeting.""",
         functions=[
             FlowsFunctionSchema(
                 name="interview_progress_tracked",
-                description="Track the initial conversation and student introduction",
+                description="OPTIONAL: Use only if the student shares something particularly interesting in their introduction. Most greetings don't need tracking.",
                 properties={
                     "student_name": {
                         "type": "string",

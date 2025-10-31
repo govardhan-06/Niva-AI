@@ -35,5 +35,6 @@ AWS_SECRET_ACCESS_KEY = get_env_var("AWS_SECRET_ACCESS_KEY", "")
 AWS_REGION = get_env_var("AWS_REGION", "eu-central-1")
 
 # API Keys
-GOOGLE_GEMINI_API_KEY = get_env_var("GOOGLE_GEMINI_API_KEY", "")
+GOOGLE_GEMINI_API_KEY = get_env_var("GOOGLE_GEMINI_API_KEY", "")  # Kept for backward compatibility
+GROQ_API_KEY = get_env_var("GROQ_API_KEY", "")
 DEEPGRAM_STT_KEY = get_env_var("DEEPGRAM_STT_KEY", "")
