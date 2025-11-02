@@ -17,7 +17,7 @@ import time
 import aiohttp, requests
 import os
 from typing import Dict, Any, Optional
-
+from app import config
 from pipecat.transports.services.helpers.daily_rest import (
     DailyRESTHelper,
     DailyRoomParams,
@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 
 class DailyService:
     def __init__(self, api_key: str = None, api_url: str = "https://api.daily.co/v1"):
-        self.api_key = api_key or os.environ.get("DAILY_API_KEY") 
+        self.api_key = config.DAILY_API_KEY
         self.api_url = api_url
         self.session = None
         self.helper = None
@@ -93,7 +93,7 @@ class DailyService:
                     sip_mode="dial-in",
                     num_endpoints=1
                 )
-            
+
             # Create room properties
             properties = DailyRoomProperties(
                 exp=time.time() + exp_time,
@@ -101,17 +101,17 @@ class DailyService:
                 sip=sip_params,
                 start_video_off=True
             )
-            
+
             # Create room parameters
             params = DailyRoomParams(
                 name=room_name,
                 privacy=privacy,
                 properties=properties
             )
-            
+
             # Create the room
             room = await self.helper.create_room(params)
-            
+
             # Return room details
             return {
                 "id": room.id,
@@ -121,6 +121,10 @@ class DailyService:
                 "created_at": room.created_at,
                 "sip_endpoint": room.config.sip_endpoint if hasattr(room.config, "sip_endpoint") else None
             }
+        
+        except Exception as e:
+            logger.error(f"Error creating room : {e}")
+            raise e
         
         finally:
             await self.close()
