@@ -9,7 +9,6 @@ import json
 from pipecat.transports.services.daily import DailyTransport
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.task import PipelineTask
-from niva_app.models.agents import Agent
 from asgiref.sync import sync_to_async
 
 logger = logging.getLogger(__name__)
@@ -249,6 +248,8 @@ class PipecatAgentService:
         """
         @sync_to_async
         def _get_agent_sync():
+            # Lazy import to avoid Django initialization issues
+            from niva_app.models.agents import Agent
             try:
                 agent = Agent.objects.filter(id=agent_id, courses__id=course_id, is_active=True).first()
                 if agent:

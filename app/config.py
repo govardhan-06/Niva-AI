@@ -23,6 +23,9 @@ LOCAL_DB_PASSWORD = os.environ.get("LOCAL_DB_PASSWORD")
 LOCAL_DB_HOST = os.environ.get("LOCAL_DB_HOST")
 LOCAL_DB_PORT = os.environ.get("LOCAL_DB_PORT")
 
+# Daily configuration
+DAILY_API_KEY = get_env_var("DAILY_API_KEY", "")
+
 # Pipecat configuration
 PIPECAT_AGENTS_URL = "http://localhost:8000/api/v1/pipecat/"
 PIPECAT_BOT_API_TOKEN = get_env_var("PIPECAT_BOT_API_TOKEN", "")

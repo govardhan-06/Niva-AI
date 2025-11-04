@@ -7,6 +7,16 @@ import logging
 import aiofiles
 import aiohttp
 import base64
+import django
+
+# Initialize Django before importing any Django models
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'app.settings')
+try:
+    django.setup()
+except Exception:
+    # Django may already be initialized, which is fine
+    pass
+
 from app import config
 import datetime
 import wave
@@ -24,7 +34,6 @@ from pipecat.processors.audio.audio_buffer_processor import AudioBufferProcessor
 from pipecat_flows import FlowManager, ContextStrategy, ContextStrategyConfig
 
 from pipecat_agents.services.pipecat_agent_service import AgentServiceRegistry, AgentService
-from niva_app.models.agents import Agent
 from django.core.exceptions import ObjectDoesNotExist
 from asgiref.sync import sync_to_async
 from pipecat_agents.services.inbound_flow_service import get_inbound_flow_config
